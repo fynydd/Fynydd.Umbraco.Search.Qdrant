@@ -1,0 +1,4 @@
+﻿<Solution>
+  <Project Path="src\Umbraco.Search.Qdrant.csproj" />
+  <Project Path="tests\Umbraco.Search.Qdrant.Tests.csproj" />
+</Solution>
