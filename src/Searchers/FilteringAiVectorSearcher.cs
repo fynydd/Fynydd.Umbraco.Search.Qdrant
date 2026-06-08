@@ -8,11 +8,11 @@ using Umbraco.Cms.Search.Core.Models.Searching.Faceting;
 using Umbraco.Cms.Search.Core.Models.Searching.Filtering;
 using Umbraco.Cms.Search.Core.Models.Searching.Sorting;
 using Umbraco.Cms.Search.Core.Services;
-using Argentini.Umbraco.Search.Qdrant.Extensions;
+using Fynydd.Umbraco.Search.Qdrant.Extensions;
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable RedundantArgumentDefaultValue
 
-namespace Argentini.Umbraco.Search.Qdrant.Searchers;
+namespace Fynydd.Umbraco.Search.Qdrant.Searchers;
 
 /// <summary>
 /// Searches Qdrant vector entries and returns Umbraco search documents after score and access filtering.

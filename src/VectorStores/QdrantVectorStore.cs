@@ -5,10 +5,10 @@ using Microsoft.Extensions.Options;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 using Umbraco.AI.Search.Core.VectorStore;
-using Argentini.Umbraco.Search.Qdrant.Extensions;
-using Argentini.Umbraco.Search.Qdrant.Indexers;
+using Fynydd.Umbraco.Search.Qdrant.Extensions;
+using Fynydd.Umbraco.Search.Qdrant.Indexers;
 
-namespace Argentini.Umbraco.Search.Qdrant.VectorStores;
+namespace Fynydd.Umbraco.Search.Qdrant.VectorStores;
 
 /// <summary>
 /// Stores AI embedding vectors in Qdrant collections partitioned by Umbraco search index and variation key.

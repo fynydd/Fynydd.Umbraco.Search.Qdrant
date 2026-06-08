@@ -1,4 +1,4 @@
-using Argentini.Umbraco.Search.Qdrant.Searchers;
+using Fynydd.Umbraco.Search.Qdrant.Searchers;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;

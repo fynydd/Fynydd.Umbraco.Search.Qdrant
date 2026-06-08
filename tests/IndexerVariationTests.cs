@@ -1,5 +1,5 @@
 using System.Reflection;
-using Argentini.Umbraco.Search.Qdrant.Indexers;
+using Fynydd.Umbraco.Search.Qdrant.Indexers;
 using Umbraco.Cms.Search.Core.Models.Indexing;
 
 namespace Umbraco.Search.Qdrant.Tests;

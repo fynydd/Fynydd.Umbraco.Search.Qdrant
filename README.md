@@ -51,7 +51,7 @@ If you use this method, don't commit that key folder to your repository! There a
 
 ## Configure
 
-**Add the package/code:** Assuming you have all the requirements established, add the `Argentini.Umbraco.Search.Qdrant` nuget package (or this repo code) to your Umbraco CMS project.
+**Add the package/code:** Assuming you have all the requirements established, add the `Fynydd.Umbraco.Search.Qdrant` nuget package (or this repo code) to your Umbraco CMS project.
 
 **Next, add your Qdrant configuration.** Below shows the configuration for a web app that has a category named "Documentation" for a docs search. In this example, there are two primary types of documents to be included in the index: 2 document types with similar properties, and a utility document type with its own properties.
 
@@ -170,7 +170,7 @@ The example below is super simple. As you can imagine, you could use code that r
 **Note:** if your text replacements are wrapped in special characters, like braces (e.g. "the year is {{year}}") you must include them in the keys in your provider.
 
 ```csharp
-using Argentini.Umbraco.Search.Qdrant.Services;
+using Fynydd.Umbraco.Search.Qdrant.Services;
 
 namespace UmbracoCms.Services;
 
@@ -208,9 +208,9 @@ Below is some example Razor code for performing a search on the example configur
 @using Umbraco.AI.Search.Core.VectorStore
 @using Umbraco.Cms.Core.Cache
 @using Umbraco.Cms.Core.PublishedCache
-@using Argentini.Umbraco.Search.Qdrant.Indexers
-@using Argentini.Umbraco.Search.Qdrant.VectorStores
-@using Argentini.Umbraco.Search.Qdrant.Extensions
+@using Fynydd.Umbraco.Search.Qdrant.Indexers
+@using Fynydd.Umbraco.Search.Qdrant.VectorStores
+@using Fynydd.Umbraco.Search.Qdrant.Extensions
 
 @inject IPublishedContentCache PublishedContentCache
 @inject QdrantVectorStore AiVectorStore

@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Argentini.Umbraco.Search.Qdrant.Indexers;
+using Fynydd.Umbraco.Search.Qdrant.Indexers;
 
 namespace Umbraco.Search.Qdrant.Tests;
 

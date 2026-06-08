@@ -1,4 +1,4 @@
-namespace Argentini.Umbraco.Search.Qdrant.Services;
+namespace Fynydd.Umbraco.Search.Qdrant.Services;
 
 /// <summary>
 /// Provides text replacements applied to semantic-search content immediately before chunking.

@@ -1,5 +1,5 @@
-using Argentini.Umbraco.Search.Qdrant.Indexers;
-using Argentini.Umbraco.Search.Qdrant.Services;
+using Fynydd.Umbraco.Search.Qdrant.Indexers;
+using Fynydd.Umbraco.Search.Qdrant.Services;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;

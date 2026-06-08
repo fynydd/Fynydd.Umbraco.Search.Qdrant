@@ -1,5 +1,5 @@
 using System.Reflection;
-using Argentini.Umbraco.Search.Qdrant.VectorStores;
+using Fynydd.Umbraco.Search.Qdrant.VectorStores;
 using Qdrant.Client.Grpc;
 
 namespace Umbraco.Search.Qdrant.Tests;

@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Umbraco.Cms.Search.Core.Models.Indexing;
 
-namespace Argentini.Umbraco.Search.Qdrant.Extensions;
+namespace Fynydd.Umbraco.Search.Qdrant.Extensions;
 
 /// <summary>
 /// Creates and parses compact keys that combine an Umbraco culture and segment for variation-aware vector storage.

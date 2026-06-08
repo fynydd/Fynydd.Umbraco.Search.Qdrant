@@ -1,4 +1,4 @@
-namespace Argentini.Umbraco.Search.Qdrant.VectorStores;
+namespace Fynydd.Umbraco.Search.Qdrant.VectorStores;
 
 /// <summary>
 /// Initializes configured Qdrant collections when the application host starts.

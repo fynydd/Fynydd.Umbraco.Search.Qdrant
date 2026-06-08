@@ -15,16 +15,16 @@ using Umbraco.Cms.Core.Web;
 using Umbraco.Cms.Search.Core.Models.Indexing;
 using Umbraco.Cms.Search.Core.Services;
 using Umbraco.Extensions;
-using Argentini.Umbraco.Search.Qdrant.Extensions;
-using Argentini.Umbraco.Search.Qdrant.Services;
-using Argentini.Umbraco.Search.Qdrant.VectorStores;
+using Fynydd.Umbraco.Search.Qdrant.Extensions;
+using Fynydd.Umbraco.Search.Qdrant.Services;
+using Fynydd.Umbraco.Search.Qdrant.VectorStores;
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 // ReSharper disable CollectionNeverUpdated.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
 
-namespace Argentini.Umbraco.Search.Qdrant.Indexers;
+namespace Fynydd.Umbraco.Search.Qdrant.Indexers;
 
 /// <summary>
 /// Builds AI vector-search chunks from configured Umbraco content fields and writes their embeddings to the vector store.

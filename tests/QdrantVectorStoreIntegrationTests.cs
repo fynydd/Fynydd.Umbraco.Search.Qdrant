@@ -1,5 +1,5 @@
-using Argentini.Umbraco.Search.Qdrant.Indexers;
-using Argentini.Umbraco.Search.Qdrant.VectorStores;
+using Fynydd.Umbraco.Search.Qdrant.Indexers;
+using Fynydd.Umbraco.Search.Qdrant.VectorStores;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Grpc.Core;

@@ -5,26 +5,26 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <Title>Umbraco Semantic Search Qdrant Provider</Title>
-        <RootNamespace>Argentini.Umbraco.Search.Qdrant</RootNamespace>
+        <RootNamespace>Fynydd.Umbraco.Search.Qdrant</RootNamespace>
 
         <AssemblyVersion>1.0.2</AssemblyVersion>
         <FileVersion>1.0.2</FileVersion>
         <PackageVersion>1.0.2</PackageVersion>
 
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <PackageId>argentini.umbraco.search.qdrant</PackageId>
-        <Authors>Michael Argentini</Authors>
-        <Company>Argentini Unlimited, Ltd</Company>
+        <PackageId>fynydd.umbraco.search.qdrant</PackageId>
+        <Authors>Fynydd LLC</Authors>
+        <Company>Fynydd LLC</Company>
         <Description>Qdrant vector store support for Umbraco semantic search.</Description>
-        <Copyright>Copyright (c) 2026 Argentini Unlimited, Ltd</Copyright>
+        <Copyright>Copyright (c) 2026 Fynydd LLC</Copyright>
         <PackageTags>umbraco;qdrant;semantic-search;vector-search</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
         <PackageReleaseNotes>Supports Umbraco.AI.Search 1.0.0-beta9, fixed html filter</PackageReleaseNotes>
         <PackageIcon>nuget-icon.png</PackageIcon>
         <PackageOutputPath>nupkg</PackageOutputPath>
-        <PackageProjectUrl>https://github.com/argentini/Argentini.Umbraco.Search.Qdrant</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/argentini/Argentini.Umbraco.Search.Qdrant</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/fynydd/Fynydd.Umbraco.Search.Qdrant</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/fynydd/Fynydd.Umbraco.Search.Qdrant</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
 
     </PropertyGroup>

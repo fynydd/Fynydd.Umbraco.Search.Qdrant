@@ -1,4 +1,4 @@
-namespace Argentini.Umbraco.Search.Qdrant.Services;
+namespace Fynydd.Umbraco.Search.Qdrant.Services;
 
 /// <summary>
 /// Default text replacement provider used when the host application does not register one.

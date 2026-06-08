@@ -1,5 +1,5 @@
 using System.Reflection;
-using Argentini.Umbraco.Search.Qdrant.Indexers;
+using Fynydd.Umbraco.Search.Qdrant.Indexers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Umbraco.AI.Search.Core.Chunking;

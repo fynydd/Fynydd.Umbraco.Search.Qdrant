@@ -4,7 +4,7 @@ using Lucene.Net.Analysis.TokenAttributes;
 using Lucene.Net.Util;
 using ReverseMarkdown;
 
-namespace Argentini.Umbraco.Search.Qdrant.Extensions;
+namespace Fynydd.Umbraco.Search.Qdrant.Extensions;
 
 /// <summary>
 /// Provides text normalization helpers used by semantic search indexing, chunking, stemming, and highlighting.

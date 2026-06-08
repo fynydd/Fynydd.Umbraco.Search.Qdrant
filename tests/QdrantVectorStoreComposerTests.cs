@@ -1,8 +1,8 @@
-using Argentini.Umbraco.Search.Qdrant.Composers;
-using Argentini.Umbraco.Search.Qdrant.Indexers;
-using Argentini.Umbraco.Search.Qdrant.Searchers;
-using Argentini.Umbraco.Search.Qdrant.Services;
-using Argentini.Umbraco.Search.Qdrant.VectorStores;
+using Fynydd.Umbraco.Search.Qdrant.Composers;
+using Fynydd.Umbraco.Search.Qdrant.Indexers;
+using Fynydd.Umbraco.Search.Qdrant.Searchers;
+using Fynydd.Umbraco.Search.Qdrant.Services;
+using Fynydd.Umbraco.Search.Qdrant.VectorStores;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

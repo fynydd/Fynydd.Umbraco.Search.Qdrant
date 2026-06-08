@@ -7,13 +7,13 @@ using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Search.Core.Configuration;
 using Umbraco.Cms.Search.Core.Services.ContentIndexing;
-using Argentini.Umbraco.Search.Qdrant.Indexers;
-using Argentini.Umbraco.Search.Qdrant.Searchers;
-using Argentini.Umbraco.Search.Qdrant.Services;
-using Argentini.Umbraco.Search.Qdrant.VectorStores;
+using Fynydd.Umbraco.Search.Qdrant.Indexers;
+using Fynydd.Umbraco.Search.Qdrant.Searchers;
+using Fynydd.Umbraco.Search.Qdrant.Services;
+using Fynydd.Umbraco.Search.Qdrant.VectorStores;
 // ReSharper disable UnusedType.Global
 
-namespace Argentini.Umbraco.Search.Qdrant.Composers;
+namespace Fynydd.Umbraco.Search.Qdrant.Composers;
 
 /// <summary>
 /// Registers Qdrant as the AI vector store and wires configured semantic-search indexes into Umbraco Search.

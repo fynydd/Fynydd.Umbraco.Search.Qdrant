@@ -1,4 +1,4 @@
-using Argentini.Umbraco.Search.Qdrant.Services;
+using Fynydd.Umbraco.Search.Qdrant.Services;
 
 namespace Umbraco.Search.Qdrant.Tests;
 
