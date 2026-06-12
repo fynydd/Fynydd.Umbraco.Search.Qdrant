@@ -111,6 +111,66 @@ public sealed class IndexerTextExtractionTests
         Assert.Empty(result);
     }
 
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesSinglePickerPropertyWithDotNotation()
+    {
+        var indexer = CreateIndexer();
+        var author = new FakePublishedElement(("Name", "Umbraco.TextBox", "Ada Lovelace"));
+        var element = new FakePublishedElement(("author", "Umbraco.MultiNodeTreePicker", author));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{author.Name}", element, searchDocument, null, 0);
+
+        Assert.Equal("Ada Lovelace", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesMultiplePickerPropertiesWithDotNotation()
+    {
+        var indexer = CreateIndexer();
+        var csharp = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>C# language</p>"));
+        var qdrant = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Qdrant vectors</p>"));
+        var element = new FakePublishedElement(("technology", "Umbraco.MultiNodeTreePicker", new[] { csharp, qdrant }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{technology.description}", element, searchDocument, null, 0);
+
+        Assert.Contains("C# language", result);
+        Assert.Contains("Qdrant vectors", result);
+        Assert.DoesNotContain("<p>", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesBlockListItemPropertyWithDotNotation()
+    {
+        var indexer = CreateIndexer();
+        var blockContent = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Block description</p>"));
+        var block = new BlockListItem(Guid.NewGuid(), blockContent, null, null!);
+        var element = new FakePublishedElement(("technology", "Umbraco.BlockList", new[] { block }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{technology.description}", element, searchDocument, null, 0);
+
+        Assert.Equal("Block description", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesNestedPickerAndBlockListPropertiesWithDotNotation()
+    {
+        var indexer = CreateIndexer();
+        var vendor = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Vendor details</p>"));
+        var cardContent = new FakePublishedElement(("vendor", "Umbraco.MultiNodeTreePicker", vendor));
+        var card = new BlockListItem(Guid.NewGuid(), cardContent, null, null!);
+        var sectionContent = new FakePublishedElement(("cards", "Umbraco.BlockList", new[] { card }));
+        var section = new BlockListItem(Guid.NewGuid(), sectionContent, null, null!);
+        var element = new FakePublishedElement(("sections", "Umbraco.BlockList", new[] { section }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{sections.cards.vendor.description}", element, searchDocument, null, 0);
+
+        Assert.Equal("Vendor details", result);
+    }
+
     private static string InvokeGetPropertyText(IPublishedElement element, string propertyAlias)
     {
         var method = typeof(FilteringAiVectorIndexer).GetMethod("GetPropertyText", BindingFlags.NonPublic | BindingFlags.Static);
@@ -173,22 +233,29 @@ public sealed class IndexerTextExtractionTests
 
     private sealed class FakePublishedElement : IPublishedElement
     {
-        private readonly FakePublishedProperty _property;
+        private readonly List<FakePublishedProperty> _properties;
 
         public FakePublishedElement(string alias, string editorAlias, object? value)
+            : this((alias, editorAlias, value))
         {
-            _property = new FakePublishedProperty(alias, editorAlias, value);
-            ContentType = new FakePublishedContentType("testElement", [_property.PropertyType]);
+        }
+
+        public FakePublishedElement(params (string Alias, string EditorAlias, object? Value)[] properties)
+        {
+            _properties = properties
+                .Select(property => new FakePublishedProperty(property.Alias, property.EditorAlias, property.Value))
+                .ToList();
+            ContentType = new FakePublishedContentType("testElement", _properties.Select(property => property.PropertyType));
         }
 
         public IPublishedContentType ContentType { get; }
 
         public Guid Key { get; } = Guid.NewGuid();
 
-        public IEnumerable<IPublishedProperty> Properties => [_property];
+        public IEnumerable<IPublishedProperty> Properties => _properties;
 
         public IPublishedProperty? GetProperty(string alias) =>
-            alias.Equals(_property.Alias, StringComparison.OrdinalIgnoreCase) ? _property : null;
+            _properties.FirstOrDefault(property => alias.Equals(property.Alias, StringComparison.OrdinalIgnoreCase));
     }
 
     private sealed class FakePublishedProperty(string alias, string editorAlias, object? value) : IPublishedProperty

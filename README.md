@@ -101,9 +101,10 @@ Here is where the new settings will go in your *appsettings.json* file:
             "Indexing": [
                 {
                     "DocumentTypeAliases": ["docPage", "docsPage"],
-                    // MarkdownTemplate also defines which properties are indexed;
-                    // by Qdrant; Breadcrumb is a dynamic value you can use to
-                    // include the Umbraco content tree path
+                    // MarkdownTemplate also defines which properties are indexed
+                    // by Qdrant. It supports fallbacks like {headline|Name},
+                    // picker/block-list paths like {author.Name} or
+                    // {technology.description}, and dynamic values like Breadcrumb.
                     "SearchText": {
                         "MarkdownTemplate": "# {headline|heroHeadline|Name}\n\n> {Breadcrumb}\n\n## Summary\n\n{heroIntroductionText}\n\n## Body\n\n{blockContent}\n\n{Url}",
                         "Fields": {

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using Umbraco.AI.Core.Embeddings;
@@ -621,6 +622,9 @@ public partial class FilteringAiVectorIndexer(
     /// </summary>
     private string ResolveTemplateAlias(string alias, IPublishedElement element, SearchIndexDocument searchIndexDocument, IPublishedContent? rootContent, int depth)
     {
+        if (alias.Contains('.', StringComparison.Ordinal))
+            return ResolveTemplatePath(alias, element, searchIndexDocument, rootContent, depth);
+
         if (rootContent is not null)
         {
             if (alias.Equals("Breadcrumb", StringComparison.OrdinalIgnoreCase))
@@ -645,6 +649,124 @@ public partial class FilteringAiVectorIndexer(
             return string.Join("\n\n", blockParts.Select(part => ApplyFieldWeight(part, searchIndexDocument).Text));
 
         return ApplyFieldWeight(new SearchTextPart(alias, GetPropertyText(element, alias)), searchIndexDocument).Text;
+    }
+
+    /// <summary>
+    /// Resolves dotted template paths through single or multiple picker and block-list values.
+    /// </summary>
+    private string ResolveTemplatePath(string path, IPublishedElement element, SearchIndexDocument searchIndexDocument, IPublishedContent? rootContent, int depth)
+    {
+        var parts = path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts.Length < 2)
+            return string.Empty;
+
+        var current = ResolveTemplatePathRoot(parts[0], element, rootContent);
+
+        for (var i = 1; i < parts.Length; i++)
+        {
+            current = ResolveTemplatePathPart(current, parts[i], searchIndexDocument, depth, i == parts.Length - 1);
+
+            if (current.Count == 0)
+                return string.Empty;
+        }
+
+        return string.Join("\n\n", current.Select(value => value.Text).Where(text => string.IsNullOrWhiteSpace(text) == false));
+    }
+
+    /// <summary>
+    /// Resolves the first segment in a dotted template path.
+    /// </summary>
+    private static List<TemplatePathValue> ResolveTemplatePathRoot(string alias, IPublishedElement element, IPublishedContent? rootContent)
+    {
+        if (rootContent is not null && alias.Equals("Name", StringComparison.OrdinalIgnoreCase))
+            return [new TemplatePathValue(rootContent.Name, alias)];
+
+        if (rootContent is not null && alias.Equals("Url", StringComparison.OrdinalIgnoreCase))
+            return [new TemplatePathValue(rootContent.Url(), alias)];
+
+        if (alias.Equals("ContentType", StringComparison.OrdinalIgnoreCase))
+            return [new TemplatePathValue(element.ContentType.Alias, alias)];
+
+        if (element.HasProperty(alias) == false)
+            return [];
+
+        return ExpandTemplatePathValue(element.GetProperty(alias)?.GetValue(), alias);
+    }
+
+    /// <summary>
+    /// Resolves one segment in a dotted template path against all current values.
+    /// </summary>
+    private List<TemplatePathValue> ResolveTemplatePathPart(IEnumerable<TemplatePathValue> values, string alias, SearchIndexDocument searchIndexDocument, int depth, bool isFinalPart)
+    {
+        var results = new List<TemplatePathValue>();
+
+        foreach (var value in values)
+        {
+            if (value.Value is IPublishedElement element)
+            {
+                if (alias.Equals("ContentType", StringComparison.OrdinalIgnoreCase))
+                {
+                    results.Add(new TemplatePathValue(element.ContentType.Alias, alias));
+                    continue;
+                }
+
+                if (element is IPublishedContent content)
+                {
+                    if (alias.Equals("Name", StringComparison.OrdinalIgnoreCase))
+                    {
+                        results.Add(new TemplatePathValue(content.Name, alias));
+                        continue;
+                    }
+
+                    if (alias.Equals("Url", StringComparison.OrdinalIgnoreCase))
+                    {
+                        results.Add(new TemplatePathValue(content.Url(), alias));
+                        continue;
+                    }
+                }
+
+                if (element.HasProperty(alias) == false)
+                    continue;
+
+                var blockParts = GetBlockSearchText(element, searchIndexDocument, alias, depth + 1);
+
+                if (blockParts.Count > 0)
+                {
+                    results.AddRange(blockParts.Select(part => new TemplatePathValue(ApplyFieldWeight(part, searchIndexDocument).Text, part.FieldName)));
+                    continue;
+                }
+
+                results.AddRange(ExpandTemplatePathValue(element.GetProperty(alias)?.GetValue(), alias, element));
+                continue;
+            }
+
+            if (isFinalPart && value.Value is not null)
+                results.Add(value);
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Expands picker, block-list, and scalar values from a template path segment.
+    /// </summary>
+    private static List<TemplatePathValue> ExpandTemplatePathValue(object? value, string fieldName, IPublishedElement? owner = null)
+    {
+        return value switch
+        {
+            null => [],
+            string text => [new TemplatePathValue(owner is null ? text : GetPropertyText(owner, fieldName), fieldName)],
+            BlockListItem item => [new TemplatePathValue(item.Content, fieldName)],
+            IEnumerable<BlockListItem> items => items.Select(item => new TemplatePathValue(item.Content, fieldName)).ToList(),
+            IPublishedElement element => [new TemplatePathValue(element, fieldName)],
+            IEnumerable<IPublishedElement> elements => elements.Select(element => new TemplatePathValue(element, fieldName)).ToList(),
+            IEnumerable enumerable when value is not string => enumerable
+                .Cast<object?>()
+                .SelectMany(item => ExpandTemplatePathValue(item, fieldName))
+                .ToList(),
+            _ => [new TemplatePathValue(value.ToString() ?? string.Empty, fieldName)]
+        };
     }
 
     /// <summary>
@@ -708,9 +830,9 @@ public partial class FilteringAiVectorIndexer(
     }
 
     /// <summary>
-    /// Matches single-brace Markdown template tokens, such as {Name} or {summary|bodyText}.
+    /// Matches single-brace Markdown template tokens, such as {Name}, {summary|bodyText}, or {author.Name}.
     /// </summary>
-    [GeneratedRegex(@"\{(?<token>[A-Za-z0-9_|]+)\}")]
+    [GeneratedRegex(@"\{(?<token>[A-Za-z0-9_|.]+)\}")]
     private static partial Regex TemplateTokenRegex();
 
     /// <summary>
@@ -861,7 +983,7 @@ public sealed class SearchIndexDocument
 public sealed class SearchTextOptions
 {
     /// <summary>
-    /// Markdown template rendered once per document. Tokens use property aliases, pipe-delimited fallbacks, and built-ins like Name, Breadcrumb, Url, and ContentType.
+    /// Markdown template rendered once per document. Tokens use property aliases, dotted picker or block-list paths, pipe-delimited fallbacks, and built-ins like Name, Breadcrumb, Url, and ContentType.
     /// </summary>
     public string MarkdownTemplate { get; set; } = string.Empty;
 
@@ -938,6 +1060,14 @@ public sealed class SearchChunkContextOptions
 /// Represents one extracted property or template text part before chunking.
 /// </summary>
 internal sealed record SearchTextPart(string FieldName, string Text);
+
+/// <summary>
+/// Represents one intermediate value while walking a dotted Markdown-template path.
+/// </summary>
+internal sealed record TemplatePathValue(object? Value, string FieldName)
+{
+    public string Text => Value?.ToString() ?? string.Empty;
+}
 
 /// <summary>
 /// Represents one final context-enriched chunk of text to embed.
