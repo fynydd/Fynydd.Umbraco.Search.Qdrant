@@ -7,9 +7,9 @@
         <Title>Umbraco Semantic Search Qdrant Provider</Title>
         <RootNamespace>Fynydd.Umbraco.Search.Qdrant</RootNamespace>
 
-        <AssemblyVersion>1.0.2</AssemblyVersion>
-        <FileVersion>1.0.2</FileVersion>
-        <PackageVersion>1.0.2</PackageVersion>
+        <AssemblyVersion>1.0.3</AssemblyVersion>
+        <FileVersion>1.0.3</FileVersion>
+        <PackageVersion>1.0.3</PackageVersion>
 
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>fynydd.umbraco.search.qdrant</PackageId>
@@ -20,7 +20,7 @@
         <PackageTags>umbraco;qdrant;semantic-search;vector-search</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-        <PackageReleaseNotes>Supports Umbraco.AI.Search 1.0.0-beta9, fixed html filter</PackageReleaseNotes>
+        <PackageReleaseNotes>Registers the Qdrant semantic searcher with DI.</PackageReleaseNotes>
         <PackageIcon>nuget-icon.png</PackageIcon>
         <PackageOutputPath>nupkg</PackageOutputPath>
         <PackageProjectUrl>https://github.com/fynydd/Fynydd.Umbraco.Search.Qdrant</PackageProjectUrl>
