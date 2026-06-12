@@ -7,9 +7,9 @@
         <Title>Umbraco Semantic Search Qdrant Provider</Title>
         <RootNamespace>Fynydd.Umbraco.Search.Qdrant</RootNamespace>
 
-        <AssemblyVersion>1.0.3</AssemblyVersion>
-        <FileVersion>1.0.3</FileVersion>
-        <PackageVersion>1.0.3</PackageVersion>
+        <AssemblyVersion>1.0.4</AssemblyVersion>
+        <FileVersion>1.0.4</FileVersion>
+        <PackageVersion>1.0.4</PackageVersion>
 
         <PackageId>fynydd.umbraco.search.qdrant</PackageId>
         <Authors>Fynydd LLC</Authors>
@@ -19,7 +19,7 @@
         <PackageTags>umbraco;qdrant;semantic-search;vector-search</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-        <PackageReleaseNotes>Registers the Qdrant semantic searcher with DI.</PackageReleaseNotes>
+        <PackageReleaseNotes>Adds dotted Markdown-template paths for picker and block-list item properties.</PackageReleaseNotes>
         <PackageIcon>nuget-icon.png</PackageIcon>
         <PackageOutputPath>nupkg</PackageOutputPath>
         <PackageProjectUrl>https://github.com/fynydd/Fynydd.Umbraco.Search.Qdrant</PackageProjectUrl>
@@ -31,7 +31,7 @@
     <ItemGroup>
         <PackageReference Include="Qdrant.Client" Version="1.18.1" />
         <PackageReference Include="ReverseMarkdown" Version="5.3.0" />
-        <PackageReference Include="Umbraco.AI.Search" Version="1.0.0-beta9" />
+        <PackageReference Include="Umbraco.AI.Search" Version="1.0.0" />
     </ItemGroup>
     
     <ItemGroup>
