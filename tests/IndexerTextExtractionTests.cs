@@ -84,6 +84,38 @@ public sealed class IndexerTextExtractionTests
     }
 
     [Fact]
+    public void ExtractTextFromFields_ResolvesAndWeightsDotNotationFields()
+    {
+        var indexer = CreateIndexer();
+        var technology = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Weighted path field</p>"));
+        var content = new FakePublishedContent("Current", ("technology", "Umbraco.MultiNodeTreePicker", technology));
+        var searchDocument = new SearchIndexDocument();
+        searchDocument.SearchText.Fields["technology.description"] = new SearchTextFieldOptions { Weight = 2 };
+
+        var texts = InvokeExtractTextFromFields(indexer, [], searchDocument, content);
+
+        var text = Assert.Single(texts);
+        Assert.Equal(2, text.Split("Weighted path field").Length - 1);
+        Assert.DoesNotContain("<p>", text);
+    }
+
+    [Fact]
+    public void ExtractTextFromFields_PrefersFullDotNotationWeightOverFinalAliasWeight()
+    {
+        var indexer = CreateIndexer();
+        var technology = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Specific path weight</p>"));
+        var content = new FakePublishedContent("Current", ("technology", "Umbraco.MultiNodeTreePicker", technology));
+        var searchDocument = new SearchIndexDocument();
+        searchDocument.SearchText.Fields["description"] = new SearchTextFieldOptions { Weight = 5 };
+        searchDocument.SearchText.Fields["technology.description"] = new SearchTextFieldOptions { Weight = 2 };
+
+        var texts = InvokeExtractTextFromFields(indexer, [], searchDocument, content);
+
+        var text = Assert.Single(texts);
+        Assert.Equal(2, text.Split("Specific path weight").Length - 1);
+    }
+
+    [Fact]
     public void RenderMarkdownTemplate_UsesFallbackAliasesAndCleansMissingHeadings()
     {
         var indexer = CreateIndexer();
@@ -171,6 +203,46 @@ public sealed class IndexerTextExtractionTests
         Assert.Equal("Vendor details", result);
     }
 
+    [Fact]
+    public void RenderMarkdownTemplate_AppliesWeightFromFullDotNotationField()
+    {
+        var indexer = CreateIndexer();
+        var technology = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Weighted dot text</p>"));
+        var element = new FakePublishedElement(("technology", "Umbraco.MultiNodeTreePicker", technology));
+        var searchDocument = new SearchIndexDocument();
+        searchDocument.SearchText.Fields["technology.description"] = new SearchTextFieldOptions { Weight = 3 };
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{technology.description}", element, searchDocument, null, 0);
+
+        Assert.Equal(3, result.Split("Weighted dot text").Length - 1);
+    }
+
+    [Fact]
+    public void ChunkingContextLists_CanResolveDotNotationAliases()
+    {
+        var indexer = CreateIndexer();
+        var titleSource = new FakePublishedElement(("name", "Umbraco.TextBox", "Context title"));
+        var sectionSource = new FakePublishedElement(("heading", "Umbraco.TextBox", "Context section"));
+        var categorySource = new FakePublishedElement(("label", "Umbraco.TextBox", "Context category"));
+        var summarySource = new FakePublishedElement(("summary", "Umbraco.TinyMCE", "<p>Context summary</p>"));
+        var content = new FakePublishedContent(
+            "Current",
+            ("author", "Umbraco.MultiNodeTreePicker", titleSource),
+            ("section", "Umbraco.MultiNodeTreePicker", sectionSource),
+            ("category", "Umbraco.MultiNodeTreePicker", categorySource),
+            ("related", "Umbraco.MultiNodeTreePicker", summarySource));
+        var searchDocument = new SearchIndexDocument();
+        searchDocument.Chunking.Context.TitlePropertyAliases.Add("author.name");
+        searchDocument.Chunking.Context.SectionTitlePropertyAliases.Add("section.heading");
+        searchDocument.Chunking.Context.CategoryPropertyAliases.Add("category.label");
+        searchDocument.Chunking.Context.AdditionalPropertyAliases.Add("related.summary");
+
+        Assert.Equal("Context title", InvokeResolveContextPropertyText(indexer, searchDocument.Chunking.Context.TitlePropertyAliases.Single(), content, searchDocument));
+        Assert.Equal("Context section", InvokeResolveContextPropertyText(indexer, searchDocument.Chunking.Context.SectionTitlePropertyAliases.Single(), content, searchDocument));
+        Assert.Equal("Context category", InvokeResolveContextPropertyText(indexer, searchDocument.Chunking.Context.CategoryPropertyAliases.Single(), content, searchDocument));
+        Assert.Equal("Context summary", InvokeResolveContextPropertyText(indexer, searchDocument.Chunking.Context.AdditionalPropertyAliases.Single(), content, searchDocument));
+    }
+
     private static string InvokeGetPropertyText(IPublishedElement element, string propertyAlias)
     {
         var method = typeof(FilteringAiVectorIndexer).GetMethod("GetPropertyText", BindingFlags.NonPublic | BindingFlags.Static);
@@ -203,6 +275,15 @@ public sealed class IndexerTextExtractionTests
         return Assert.IsType<string>(method.Invoke(indexer, [template, element, searchDocument, content, depth]));
     }
 
+    private static string InvokeResolveContextPropertyText(FilteringAiVectorIndexer indexer, string propertyAlias, IPublishedContent content, SearchIndexDocument searchDocument)
+    {
+        var method = typeof(FilteringAiVectorIndexer).GetMethod("ResolveContextPropertyText", BindingFlags.NonPublic | BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        return Assert.IsType<string>(method.Invoke(indexer, [propertyAlias, content, searchDocument, content]));
+    }
+
     private static List<string> InvokeGetBlockSearchText(FilteringAiVectorIndexer indexer, IPublishedElement element, SearchIndexDocument searchDocument, string fieldName, int depth)
     {
         var method = typeof(FilteringAiVectorIndexer).GetMethod("GetBlockSearchText", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -231,7 +312,7 @@ public sealed class IndexerTextExtractionTests
         Options.Create(new AiSearchIndexFilterOptions()),
         NullLogger<FilteringAiVectorIndexer>.Instance);
 
-    private sealed class FakePublishedElement : IPublishedElement
+    private class FakePublishedElement : IPublishedElement
     {
         private readonly List<FakePublishedProperty> _properties;
 
@@ -256,6 +337,44 @@ public sealed class IndexerTextExtractionTests
 
         public IPublishedProperty? GetProperty(string alias) =>
             _properties.FirstOrDefault(property => alias.Equals(property.Alias, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private sealed class FakePublishedContent(string name, params (string Alias, string EditorAlias, object? Value)[] properties)
+        : FakePublishedElement(properties), IPublishedContent
+    {
+        public int Id => 1;
+
+        public string Name { get; } = name;
+
+        public string UrlSegment => name.ToLowerInvariant();
+
+        public int SortOrder => 0;
+
+        public int Level => 1;
+
+        public string Path => "-1,1";
+
+        public int? TemplateId => null;
+
+        public int CreatorId => 0;
+
+        public DateTime CreateDate => DateTime.UtcNow;
+
+        public int WriterId => 0;
+
+        public DateTime UpdateDate => DateTime.UtcNow;
+
+        public IReadOnlyDictionary<string, PublishedCultureInfo> Cultures { get; } = new Dictionary<string, PublishedCultureInfo>();
+
+        public PublishedItemType ItemType => PublishedItemType.Content;
+
+        public IPublishedContent? Parent => null;
+
+        public IEnumerable<IPublishedContent> Children => [];
+
+        public bool IsDraft(string? culture = null) => false;
+
+        public bool IsPublished(string? culture = null) => true;
     }
 
     private sealed class FakePublishedProperty(string alias, string editorAlias, object? value) : IPublishedProperty

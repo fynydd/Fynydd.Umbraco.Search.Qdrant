@@ -105,6 +105,7 @@ Here is where the new settings will go in your *appsettings.json* file:
                     // by Qdrant. It supports fallbacks like {headline|Name},
                     // picker/block-list paths like {author.Name} or
                     // {technology.description}, and dynamic values like Breadcrumb.
+                    // Fields and chunking context aliases also support dotted paths.
                     "SearchText": {
                         "MarkdownTemplate": "# {headline|heroHeadline|Name}\n\n> {Breadcrumb}\n\n## Summary\n\n{heroIntroductionText}\n\n## Body\n\n{blockContent}\n\n{Url}",
                         "Fields": {

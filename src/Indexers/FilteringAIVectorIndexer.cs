@@ -305,7 +305,9 @@ public partial class FilteringAiVectorIndexer(
 
         foreach (var propertyAlias in searchIndexDocument?.Chunking.Context.TitlePropertyAliases ?? [])
         {
-            var title = content?.Value(propertyAlias, fallback: Fallback.ToDefaultValue, defaultValue: string.Empty) ?? string.Empty;
+            var title = content is null
+                ? string.Empty
+                : ResolveContextPropertyText(propertyAlias, content, searchIndexDocument, content);
 
             if (string.IsNullOrWhiteSpace(title))
                 continue;
@@ -317,7 +319,9 @@ public partial class FilteringAiVectorIndexer(
 
         foreach (var propertyAlias in searchIndexDocument?.Chunking.Context.SectionTitlePropertyAliases ?? [])
         {
-            var title = content?.Value(propertyAlias, fallback: Fallback.ToDefaultValue, defaultValue: string.Empty) ?? string.Empty;
+            var title = content is null
+                ? string.Empty
+                : ResolveContextPropertyText(propertyAlias, content, searchIndexDocument, content);
 
             if (string.IsNullOrWhiteSpace(title))
                 continue;
@@ -338,7 +342,7 @@ public partial class FilteringAiVectorIndexer(
                     continue;
                 }
 
-                var value = GetPropertyText(content, propertyAlias);
+                var value = ResolveContextPropertyText(propertyAlias, content, searchIndexDocument, content);
 
                 if (string.IsNullOrWhiteSpace(value) == false)
                     prefix += $"{ApplyTextReplacements(value, textReplacements)}\n\n";
@@ -390,17 +394,30 @@ public partial class FilteringAiVectorIndexer(
     /// <summary>
     /// Resolves the first configured category or taxonomy property value for metadata and chunk context.
     /// </summary>
-    private static string CreateDocumentCategory(IPublishedContent? content, SearchIndexDocument? searchIndexDocument)
+    private string CreateDocumentCategory(IPublishedContent? content, SearchIndexDocument? searchIndexDocument)
     {
         foreach (var propertyAlias in searchIndexDocument?.Chunking.Context.CategoryPropertyAliases ?? [])
         {
-            var category = content?.Value(propertyAlias, fallback: Fallback.ToDefaultValue, defaultValue: string.Empty) ?? string.Empty;
+            var category = content is null
+                ? string.Empty
+                : ResolveContextPropertyText(propertyAlias, content, searchIndexDocument, content);
 
             if (string.IsNullOrWhiteSpace(category) == false)
                 return category;
         }
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// Resolves direct and dotted context property aliases without applying search-text field weighting.
+    /// </summary>
+    private string ResolveContextPropertyText(string propertyAlias, IPublishedElement element, SearchIndexDocument? searchIndexDocument, IPublishedContent? rootContent)
+    {
+        if (propertyAlias.Contains('.', StringComparison.Ordinal))
+            return ResolveTemplatePath(propertyAlias, element, searchIndexDocument ?? new SearchIndexDocument(), rootContent, 0, applyWeights: false);
+
+        return GetPropertyText(element, propertyAlias);
     }
 
     /// <summary>
@@ -514,6 +531,16 @@ public partial class FilteringAiVectorIndexer(
 
         foreach (var propertyAlias in searchIndexDocument?.SearchText.Fields.Keys ?? Enumerable.Empty<string>())
         {
+            if (content is not null && propertyAlias.Contains('.', StringComparison.Ordinal))
+            {
+                var pathText = ResolveTemplatePath(propertyAlias, content, searchIndexDocument!, content, 0, applyWeights: false);
+
+                if (string.IsNullOrWhiteSpace(pathText) == false)
+                    texts.Add(new SearchTextPart(propertyAlias, pathText));
+
+                continue;
+            }
+
             // ReSharper disable UnusedVariable
             foreach (var (fieldName, value, culture, segment) in fields ?? [])
             {
@@ -571,16 +598,26 @@ public partial class FilteringAiVectorIndexer(
     /// </summary>
     private SearchTextPart ApplyFieldWeight(SearchTextPart part, SearchIndexDocument? searchIndexDocument)
     {
+        var text = ApplyFieldWeight(part.FieldName, part.Text, searchIndexDocument);
+
+        return text == part.Text
+            ? part
+            : part with { Text = text };
+    }
+
+    /// <summary>
+    /// Applies a configured field weight, preferring a dotted path-specific weight when supplied.
+    /// </summary>
+    private static string ApplyFieldWeight(string fieldName, string text, SearchIndexDocument? searchIndexDocument, string? fieldPath = null)
+    {
         var weight = 1;
 
-        if (searchIndexDocument?.SearchText.Fields.TryGetValue(part.FieldName, out var fieldOptions) == true)
+        if (fieldPath is not null && searchIndexDocument?.SearchText.Fields.TryGetValue(fieldPath, out var pathOptions) == true)
+            weight = pathOptions.Weight;
+        else if (searchIndexDocument?.SearchText.Fields.TryGetValue(fieldName, out var fieldOptions) == true)
             weight = fieldOptions.Weight;
 
-        weight = Math.Clamp(weight, 1, 5);
-
-        return weight == 1
-            ? part
-            : part with { Text = part.Text.ApplyFieldWeight(weight) };
+        return text.ApplyFieldWeight(weight);
     }
 
     /// <summary>
@@ -654,7 +691,7 @@ public partial class FilteringAiVectorIndexer(
     /// <summary>
     /// Resolves dotted template paths through single or multiple picker and block-list values.
     /// </summary>
-    private string ResolveTemplatePath(string path, IPublishedElement element, SearchIndexDocument searchIndexDocument, IPublishedContent? rootContent, int depth)
+    private string ResolveTemplatePath(string path, IPublishedElement element, SearchIndexDocument searchIndexDocument, IPublishedContent? rootContent, int depth, bool applyWeights = true)
     {
         var parts = path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -671,7 +708,13 @@ public partial class FilteringAiVectorIndexer(
                 return string.Empty;
         }
 
-        return string.Join("\n\n", current.Select(value => value.Text).Where(text => string.IsNullOrWhiteSpace(text) == false));
+        return string.Join(
+            "\n\n",
+            current
+                .Select(value => applyWeights
+                    ? ApplyFieldWeight(value.FieldName, value.Text, searchIndexDocument, path)
+                    : value.Text)
+                .Where(text => string.IsNullOrWhiteSpace(text) == false));
     }
 
     /// <summary>
