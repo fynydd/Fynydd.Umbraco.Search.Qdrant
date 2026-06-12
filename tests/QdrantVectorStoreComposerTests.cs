@@ -29,6 +29,7 @@ public sealed class QdrantVectorStoreComposerTests
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IHostedService) && descriptor.ImplementationType == typeof(QdrantVectorStoreInitializer));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(ITextReplacementProvider));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(FilteringAiVectorIndexer));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(FilteringAiVectorSearcher));
     }
 
     [Fact]

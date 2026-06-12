@@ -42,6 +42,7 @@ public class QdrantVectorStoreComposer : IComposer
         builder.Services.AddHostedService<QdrantVectorStoreInitializer>();
         builder.Services.TryAddSingleton<ITextReplacementProvider, EmptyTextReplacementProvider>();
         builder.Services.AddTransient<FilteringAiVectorIndexer>();
+        builder.Services.AddTransient<FilteringAiVectorSearcher>();
         builder.Services.AddOptions<IndexOptions>().Configure<IOptions<AiSearchIndexFilterOptions>>((options, aiSearchOptions) =>
         {
             var indexAliases = aiSearchOptions.Value.Categories.Values
