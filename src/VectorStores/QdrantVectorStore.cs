@@ -7,6 +7,7 @@ using Qdrant.Client.Grpc;
 using Umbraco.AI.Search.Core.VectorStore;
 using Fynydd.Umbraco.Search.Qdrant.Extensions;
 using Fynydd.Umbraco.Search.Qdrant.Indexers;
+// ReSharper disable UnusedVariable
 
 namespace Fynydd.Umbraco.Search.Qdrant.VectorStores;
 
@@ -50,7 +51,7 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
     }
     
     /// <summary>
-    /// Ensures a Qdrant collection exists and recreates it when its vector dimension does not match configuration.
+    /// Ensures a Qdrant collection exists without deleting existing vectors during normal startup or search traffic.
     /// </summary>
     /// <param name="collectionName">The Qdrant collection name.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -64,14 +65,17 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
             var collectionInfo = await client.GetCollectionInfoAsync(collectionName, cancellationToken);
             var vectorSize = collectionInfo.Config?.Params?.VectorsConfig?.Params?.Size;
 
-            if (vectorSize == filterOptions.Value.Connection.EmbeddingSize)
+            if (vectorSize is not null && vectorSize != filterOptions.Value.Connection.EmbeddingSize)
             {
-                _ensuredCollections[collectionName] = filterOptions.Value.Connection.EmbeddingSize;
-                return true;
+                logger.LogWarning(
+                    "Qdrant collection {CollectionName} has vector size {ActualVectorSize}, but configuration expects {ConfiguredVectorSize}. The collection was preserved; use reset only when you intentionally want to rebuild it.",
+                    collectionName,
+                    vectorSize,
+                    filterOptions.Value.Connection.EmbeddingSize);
             }
 
-            _ensuredCollections.TryRemove(collectionName, out _);
-            await client.DeleteCollectionAsync(collectionName, TimeSpan.FromSeconds(300), cancellationToken);
+            _ensuredCollections[collectionName] = vectorSize ?? filterOptions.Value.Connection.EmbeddingSize;
+            return true;
         }
         
         await client.CreateCollectionAsync(
@@ -97,7 +101,7 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
     /// </summary>
     private async Task<bool> EnsureCollectionCachedAsync(string collectionName, CancellationToken cancellationToken = new())
     {
-        if (_ensuredCollections.TryGetValue(collectionName, out var embeddingSize) && embeddingSize == filterOptions.Value.Connection.EmbeddingSize)
+        if (_ensuredCollections.ContainsKey(collectionName))
             return true;
 
         var collectionLock = _collectionLocks.GetOrAdd(collectionName, _ => new SemaphoreSlim(1, 1));
@@ -106,7 +110,7 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
 
         try
         {
-            if (_ensuredCollections.TryGetValue(collectionName, out embeddingSize) && embeddingSize == filterOptions.Value.Connection.EmbeddingSize)
+            if (_ensuredCollections.ContainsKey(collectionName))
                 return true;
 
             return await EnsureCollectionAsync(collectionName, cancellationToken);
@@ -133,7 +137,7 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
         collectionName.StartsWith(collectionNamePrefix + "-", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Deletes points from a collection and ignores the delete when the collection disappeared during the operation.
+    /// Deletes points from a collection and ignores the deletion when the collection disappeared during the operation.
     /// </summary>
     private async Task DeletePointsIfCollectionExistsAsync(string collectionName, Filter filter, CancellationToken cancellationToken)
     {

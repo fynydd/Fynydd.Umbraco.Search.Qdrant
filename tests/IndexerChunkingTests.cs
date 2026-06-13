@@ -129,6 +129,8 @@ public sealed class IndexerChunkingTests
         textChunker,
         null!,
         null!,
+        null,
+        null,
         null!,
         null!,
         null!,

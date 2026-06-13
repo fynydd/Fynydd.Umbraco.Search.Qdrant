@@ -17,6 +17,14 @@ public sealed class SemanticSearchHelpersTests
     }
 
     [Fact]
+    public void ApplyFieldWeight_RepeatsMarkdownListsWithSingleLineBreaks()
+    {
+        var result = "- one\n- two".ApplyFieldWeight(2);
+
+        Assert.Equal("- one\n- two\n- one\n- two", result);
+    }
+
+    [Fact]
     public void SplitMarkdownSections_KeepsHeadingsWithTheirBody()
     {
         const string markdown = """

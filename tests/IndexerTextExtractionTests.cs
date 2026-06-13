@@ -3,9 +3,15 @@ using System.Reflection;
 using Fynydd.Umbraco.Search.Qdrant.Indexers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NSubstitute;
+using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.Blocks;
+using Umbraco.Cms.Core.Models.Membership;
 using Umbraco.Cms.Core.Models.PublishedContent;
+using Umbraco.Cms.Core.PublishedCache;
+using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Core.Web;
 using Umbraco.Cms.Core.PropertyEditors;
 using Umbraco.Cms.Search.Core.Models.Indexing;
 
@@ -38,11 +44,22 @@ public sealed class IndexerTextExtractionTests
     }
 
     [Fact]
+    public void GetPropertyText_DoesNotStringifyBlockListValues()
+    {
+        var block = new BlockListItem(Guid.NewGuid(), new FakePublishedElement(("body", "Umbraco.TinyMCE", "<p>Nested</p>")), null, null!);
+        var element = new FakePublishedElement(("blocks", "Umbraco.BlockList", new[] { block }));
+
+        var result = InvokeGetPropertyText(element, "blocks");
+
+        Assert.Empty(result);
+        Assert.DoesNotContain("BlockList", result);
+    }
+
+    [Fact]
     public void ExtractTextFromFields_StripsHtmlFromIndexValues()
     {
         var indexer = CreateIndexer();
         var searchDocument = new SearchIndexDocument();
-        searchDocument.SearchText.Fields["body"] = new SearchTextFieldOptions();
         var fields = new[]
         {
             new IndexField(
@@ -62,57 +79,42 @@ public sealed class IndexerTextExtractionTests
     }
 
     [Fact]
-    public void ExtractTextFromFields_AppliesConfiguredFieldWeight()
+    public void RenderMarkdownTemplate_AppliesTokenWeight()
     {
         var indexer = CreateIndexer();
+        var element = new FakePublishedElement("body", "Umbraco.TinyMCE", "<p>weighted syntax</p>");
         var searchDocument = new SearchIndexDocument();
-        searchDocument.SearchText.Fields["body"] = new SearchTextFieldOptions { Weight = 3 };
-        var fields = new[]
-        {
-            new IndexField(
-                "body",
-                new Umbraco.Cms.Search.Core.Models.Indexing.IndexValue { Texts = ["<p>weighted syntax</p>"] },
-                null,
-                null)
-        };
 
-        var texts = InvokeExtractTextFromFields(indexer, fields, searchDocument, null);
+        var result = InvokeRenderMarkdownTemplate(indexer, "{body:3}", element, searchDocument, null, 0);
 
-        var text = Assert.Single(texts);
-        Assert.Equal(3, text.Split("weighted syntax").Length - 1);
-        Assert.DoesNotContain("<p>", text);
+        Assert.Equal(3, result.Split("weighted syntax").Length - 1);
+        Assert.DoesNotContain("<p>", result);
     }
 
     [Fact]
-    public void ExtractTextFromFields_ResolvesAndWeightsDotNotationFields()
+    public void RenderMarkdownTemplate_ResolvesAndWeightsDotNotationToken()
     {
         var indexer = CreateIndexer();
         var technology = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Weighted path field</p>"));
         var content = new FakePublishedContent("Current", ("technology", "Umbraco.MultiNodeTreePicker", technology));
         var searchDocument = new SearchIndexDocument();
-        searchDocument.SearchText.Fields["technology.description"] = new SearchTextFieldOptions { Weight = 2 };
 
-        var texts = InvokeExtractTextFromFields(indexer, [], searchDocument, content);
+        var result = InvokeRenderMarkdownTemplate(indexer, "{technology.description:2}", content, searchDocument, content, 0);
 
-        var text = Assert.Single(texts);
-        Assert.Equal(2, text.Split("Weighted path field").Length - 1);
-        Assert.DoesNotContain("<p>", text);
+        Assert.Equal(2, result.Split("Weighted path field").Length - 1);
+        Assert.DoesNotContain("<p>", result);
     }
 
     [Fact]
-    public void ExtractTextFromFields_PrefersFullDotNotationWeightOverFinalAliasWeight()
+    public void RenderMarkdownTemplate_PreservesColonAliasesBeforeTrailingWeight()
     {
         var indexer = CreateIndexer();
-        var technology = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Specific path weight</p>"));
-        var content = new FakePublishedContent("Current", ("technology", "Umbraco.MultiNodeTreePicker", technology));
+        var element = new FakePublishedElement("name:headline", "Umbraco.TinyMCE", "<p>Colon alias text</p>");
         var searchDocument = new SearchIndexDocument();
-        searchDocument.SearchText.Fields["description"] = new SearchTextFieldOptions { Weight = 5 };
-        searchDocument.SearchText.Fields["technology.description"] = new SearchTextFieldOptions { Weight = 2 };
 
-        var texts = InvokeExtractTextFromFields(indexer, [], searchDocument, content);
+        var result = InvokeRenderMarkdownTemplate(indexer, "{name:headline:3}", element, searchDocument, null, 0);
 
-        var text = Assert.Single(texts);
-        Assert.Equal(2, text.Split("Specific path weight").Length - 1);
+        Assert.Equal(3, result.Split("Colon alias text").Length - 1);
     }
 
     [Fact]
@@ -134,7 +136,6 @@ public sealed class IndexerTextExtractionTests
     {
         var indexer = CreateIndexer();
         var searchDocument = new SearchIndexDocument();
-        searchDocument.SearchText.Fields["blocks"] = new SearchTextFieldOptions();
         var block = new BlockListItem(Guid.NewGuid(), new FakePublishedElement("body", "Umbraco.TinyMCE", "<p>Too deep</p>"), null, null!);
         var element = new FakePublishedElement("blocks", "Umbraco.BlockList", new[] { block });
 
@@ -157,6 +158,48 @@ public sealed class IndexerTextExtractionTests
     }
 
     [Fact]
+    public void RenderMarkdownTemplate_DoesNotUseScalarPickerValueAsNestedProperty()
+    {
+        var indexer = CreateIndexer();
+        var element = new FakePublishedElement(("author", "Umbraco.MultiNodeTreePicker", 0));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{author.Name}", element, searchDocument, null, 0);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesUserPickerNameWithDotNotation()
+    {
+        var userService = Substitute.For<IUserService>();
+        var user = Substitute.For<IUser>();
+        user.Name.Returns("Jane Editor");
+        userService.GetUserById(2).Returns(user);
+        var indexer = CreateIndexer(userService: userService);
+        var element = new FakePublishedElement(("author", "Umbraco.UserPicker", 2));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{author.Name}", element, searchDocument, null, 0);
+
+        Assert.Equal("Jane Editor", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_DoesNotStringifyComplexFallbackValue()
+    {
+        var indexer = CreateIndexer();
+        var block = new BlockListItem(Guid.NewGuid(), new FakePublishedElement(("body", "Umbraco.TinyMCE", "<p>Nested</p>")), null, null!);
+        var element = new FakePublishedElement(("blockContent", "Umbraco.BlockList", new[] { block }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{blockContent|body}", element, searchDocument, null, 0);
+
+        Assert.Empty(result);
+        Assert.DoesNotContain("BlockList", result);
+    }
+
+    [Fact]
     public void RenderMarkdownTemplate_ResolvesMultiplePickerPropertiesWithDotNotation()
     {
         var indexer = CreateIndexer();
@@ -170,6 +213,289 @@ public sealed class IndexerTextExtractionTests
         Assert.Contains("C# language", result);
         Assert.Contains("Qdrant vectors", result);
         Assert.DoesNotContain("<p>", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesPublishedContentPickerPropertiesWithDotNotation()
+    {
+        var indexer = CreateIndexer();
+        var clientProjects = new FakePublishedContent("Client projects", ("segments", "Umbraco.Tags", "Client projects"));
+        var caseStudies = new FakePublishedContent("Case studies", ("segments", "Umbraco.Tags", "Case studies"));
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { clientProjects, caseStudies }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Contains("Client projects", result);
+        Assert.Contains("Case studies", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesPublishedContentPickerMultipleTextStringWithDotNotation()
+    {
+        var indexer = CreateIndexer();
+        var category = new FakePublishedContent("Client projects", ("segments", "Umbraco.MultipleTextString", new[] { "Client projects", "Government" }));
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { category }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Contains("Client projects", result);
+        Assert.Contains("Government", result);
+        Assert.DoesNotContain("System.String", result);
+        Assert.Equal(1, result.Split("Client projects").Length - 1);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_FormatsMultipleTextStringAsMarkdownList()
+    {
+        var indexer = CreateIndexer();
+        var category = new FakePublishedContent("Client projects", ("segments", "Umbraco.MultipleTextString", new[] { "Client projects", "Group\nWebsites" }));
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { category }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Equal("- Client projects\n- Websites", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_UsesMultipleTextStringSourceWhenConvertedValueIsEmpty()
+    {
+        var indexer = CreateIndexer();
+        var category = new FakePublishedElement(("segments", "Umbraco.MultipleTextString", Array.Empty<string>(), """["Client projects","Government"]"""));
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { category }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Contains("Client projects", result);
+        Assert.Contains("Government", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_UsesContentServiceWhenPublishedPickerPropertyIsEmpty()
+    {
+        var key = Guid.NewGuid();
+        var category = new FakePublishedContent("Client projects", key, ("segments", "Umbraco.MultipleTextString", Array.Empty<string>()));
+        var serviceCategory = Substitute.For<IContent>();
+        serviceCategory.HasProperty("segments").Returns(true);
+        serviceCategory.GetValue("segments").Returns(new[] { "Client projects", "Government" });
+        var contentService = Substitute.For<IContentService>();
+        contentService.GetById(key).Returns(serviceCategory);
+        var indexer = CreateIndexer(contentService: contentService);
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { category }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Contains("Client projects", result);
+        Assert.Contains("Government", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_FallsBackWhenContentServicePickerRootIsEmpty()
+    {
+        var rootKey = Guid.NewGuid();
+        var category = new FakePublishedContent("Client projects", ("segments", "Umbraco.MultipleTextString", new[] { "Client projects" }));
+        var root = new FakePublishedContent("Root", rootKey, ("categories", "Umbraco.MultiNodeTreePicker", new[] { category }));
+        var serviceRoot = Substitute.For<IContent>();
+        serviceRoot.HasProperty("categories").Returns(true);
+        serviceRoot.GetValue("categories", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool>()).Returns((object?)null);
+        serviceRoot.GetValue("categories", published: Arg.Any<bool>()).Returns((object?)null);
+        serviceRoot.GetValue("categories").Returns((object?)null);
+        var contentService = Substitute.For<IContentService>();
+        contentService.GetById(rootKey).Returns(serviceRoot);
+        var indexer = CreateIndexer(contentService: contentService);
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", root, searchDocument, root, 0);
+
+        Assert.Equal("- Client projects", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_FallsBackWhenContentServiceNestedPropertyIsEmpty()
+    {
+        var categoryKey = Guid.NewGuid();
+        var category = new FakePublishedContent("Client projects", categoryKey, ("segments", "Umbraco.MultipleTextString", new[] { "Client projects" }));
+        var serviceCategory = Substitute.For<IContent>();
+        serviceCategory.HasProperty("segments").Returns(true);
+        serviceCategory.GetValue("segments", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool>()).Returns((object?)null);
+        serviceCategory.GetValue("segments", published: Arg.Any<bool>()).Returns((object?)null);
+        serviceCategory.GetValue("segments").Returns((object?)null);
+        var contentService = Substitute.For<IContentService>();
+        contentService.GetById(categoryKey).Returns(serviceCategory);
+        var indexer = CreateIndexer(contentService: contentService);
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { category }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Equal("- Client projects", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_UsesStoredContentServiceValuesWhenGetValueIsEmpty()
+    {
+        var categoryKey = Guid.NewGuid();
+        var category = new FakePublishedContent("Client projects", categoryKey, ("segments", "Umbraco.MultipleTextString", Array.Empty<string>()));
+        var propertyValue = Substitute.For<IPropertyValue>();
+        propertyValue.PublishedValue.Returns("""["Client projects","Government"]""");
+        var property = Substitute.For<IProperty>();
+        property.Alias.Returns("segments");
+        property.Values.Returns([propertyValue]);
+        var properties = Substitute.For<IPropertyCollection>();
+        properties.GetEnumerator().Returns(_ => new List<IProperty> { property }.GetEnumerator());
+        var serviceCategory = Substitute.For<IContent>();
+        serviceCategory.HasProperty("segments").Returns(true);
+        serviceCategory.GetValue("segments", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool>()).Returns((object?)null);
+        serviceCategory.GetValue("segments", published: Arg.Any<bool>()).Returns((object?)null);
+        serviceCategory.GetValue("segments").Returns((object?)null);
+        serviceCategory.Properties.Returns(properties);
+        var contentService = Substitute.For<IContentService>();
+        contentService.GetById(categoryKey).Returns(serviceCategory);
+        var indexer = CreateIndexer(contentService: contentService);
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { category }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Contains("Client projects", result);
+        Assert.Contains("Government", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_FallsBackToPublishedCacheWhenContentServiceNestedValueIsEmpty()
+    {
+        var categoryKey = Guid.NewGuid();
+        var pickerCategory = Substitute.For<IContent>();
+        pickerCategory.Key.Returns(categoryKey);
+        pickerCategory.HasProperty("segments").Returns(true);
+        pickerCategory.GetValue("segments", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool>()).Returns((object?)null);
+        pickerCategory.GetValue("segments", published: Arg.Any<bool>()).Returns((object?)null);
+        pickerCategory.GetValue("segments").Returns((object?)null);
+        var pickerProperty = Substitute.For<IProperty>();
+        pickerProperty.Alias.Returns("segments");
+        var pickerProperties = Substitute.For<IPropertyCollection>();
+        pickerProperties.GetEnumerator().Returns(_ => new List<IProperty> { pickerProperty }.GetEnumerator());
+        pickerCategory.Properties.Returns(pickerProperties);
+        var contentService = Substitute.For<IContentService>();
+        contentService.GetById(categoryKey).Returns(pickerCategory);
+        var category = new FakePublishedContent("Client projects", categoryKey, ("segments", "Umbraco.MultipleTextString", new[] { "Client projects" }));
+        var contentCache = Substitute.For<IPublishedContentCache>();
+        contentCache.GetById(categoryKey).Returns(category);
+        var context = Substitute.For<IUmbracoContext>();
+        context.Content.Returns(contentCache);
+        var contextAccessor = Substitute.For<IUmbracoContextAccessor>();
+        var contextFactory = Substitute.For<IUmbracoContextFactory>();
+        contextFactory.EnsureUmbracoContext().Returns(_ => new UmbracoContextReference(context, true, contextAccessor));
+        var indexer = CreateIndexer(contentService: contentService, contextFactory: contextFactory);
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { pickerCategory }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Equal("- Client projects", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesRawUdiMultiplePickerPropertiesWithDotNotation()
+    {
+        var key = Guid.Parse("8a976dc3-7897-4015-b559-f9c0e7ee1f5a");
+        var category = new FakePublishedContent("Client projects", ("segments", "Umbraco.Tags", "Client projects"));
+        var contentCache = Substitute.For<IPublishedContentCache>();
+        contentCache.GetById(key).Returns(category);
+        var context = Substitute.For<IUmbracoContext>();
+        context.Content.Returns(contentCache);
+        var contextAccessor = Substitute.For<IUmbracoContextAccessor>();
+        var contextFactory = Substitute.For<IUmbracoContextFactory>();
+        contextFactory.EnsureUmbracoContext().Returns(_ => new UmbracoContextReference(context, true, contextAccessor));
+        var indexer = CreateIndexer(contextFactory: contextFactory);
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", "umb://document/8a976dc378974015b559f9c0e7ee1f5a"));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Equal("Client projects", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesRawUdiPickerPropertiesFromContentService()
+    {
+        var key = Guid.Parse("8a976dc3-7897-4015-b559-f9c0e7ee1f5a");
+        var contentCache = Substitute.For<IPublishedContentCache>();
+        contentCache.GetById(key).Returns((IPublishedContent?)null);
+        var context = Substitute.For<IUmbracoContext>();
+        context.Content.Returns(contentCache);
+        var contextAccessor = Substitute.For<IUmbracoContextAccessor>();
+        var contextFactory = Substitute.For<IUmbracoContextFactory>();
+        contextFactory.EnsureUmbracoContext().Returns(_ => new UmbracoContextReference(context, true, contextAccessor));
+        var category = Substitute.For<IContent>();
+        category.Name.Returns("Client projects");
+        category.HasProperty("segments").Returns(true);
+        category.GetValue("segments").Returns("Client projects");
+        var contentService = Substitute.For<IContentService>();
+        contentService.GetById(key).Returns(category);
+        var indexer = CreateIndexer(contentService: contentService, contextFactory: contextFactory);
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", "umb://document/8a976dc378974015b559f9c0e7ee1f5a"));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Equal("Client projects", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesContentServiceMultipleTextStringWithDotNotation()
+    {
+        var key = Guid.Parse("8a976dc3-7897-4015-b559-f9c0e7ee1f5a");
+        var contentCache = Substitute.For<IPublishedContentCache>();
+        contentCache.GetById(key).Returns((IPublishedContent?)null);
+        var context = Substitute.For<IUmbracoContext>();
+        context.Content.Returns(contentCache);
+        var contextAccessor = Substitute.For<IUmbracoContextAccessor>();
+        var contextFactory = Substitute.For<IUmbracoContextFactory>();
+        contextFactory.EnsureUmbracoContext().Returns(_ => new UmbracoContextReference(context, true, contextAccessor));
+        var category = Substitute.For<IContent>();
+        category.HasProperty("segments").Returns(true);
+        category.GetValue("segments").Returns(new[] { "Client projects", "Government" });
+        var contentService = Substitute.For<IContentService>();
+        contentService.GetById(key).Returns(category);
+        var indexer = CreateIndexer(contentService: contentService, contextFactory: contextFactory);
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", "umb://document/8a976dc378974015b559f9c0e7ee1f5a"));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Contains("Client projects", result);
+        Assert.Contains("Government", result);
+        Assert.DoesNotContain("System.String", result);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_ResolvesUdiObjectPickerPropertiesFromContentService()
+    {
+        var key = Guid.Parse("8a976dc3-7897-4015-b559-f9c0e7ee1f5a");
+        var contentCache = Substitute.For<IPublishedContentCache>();
+        contentCache.GetById(key).Returns((IPublishedContent?)null);
+        var context = Substitute.For<IUmbracoContext>();
+        context.Content.Returns(contentCache);
+        var contextAccessor = Substitute.For<IUmbracoContextAccessor>();
+        var contextFactory = Substitute.For<IUmbracoContextFactory>();
+        contextFactory.EnsureUmbracoContext().Returns(_ => new UmbracoContextReference(context, true, contextAccessor));
+        var category = Substitute.For<IContent>();
+        category.HasProperty("segments").Returns(true);
+        category.GetValue("segments").Returns("Client projects");
+        var contentService = Substitute.For<IContentService>();
+        contentService.GetById(key).Returns(category);
+        var indexer = CreateIndexer(contentService: contentService, contextFactory: contextFactory);
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { new FakeUdi("umb://document/8a976dc378974015b559f9c0e7ee1f5a") }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments}", element, searchDocument, null, 0);
+
+        Assert.Equal("Client projects", result);
     }
 
     [Fact]
@@ -210,11 +536,24 @@ public sealed class IndexerTextExtractionTests
         var technology = new FakePublishedElement(("description", "Umbraco.TinyMCE", "<p>Weighted dot text</p>"));
         var element = new FakePublishedElement(("technology", "Umbraco.MultiNodeTreePicker", technology));
         var searchDocument = new SearchIndexDocument();
-        searchDocument.SearchText.Fields["technology.description"] = new SearchTextFieldOptions { Weight = 3 };
 
-        var result = InvokeRenderMarkdownTemplate(indexer, "{technology.description}", element, searchDocument, null, 0);
+        var result = InvokeRenderMarkdownTemplate(indexer, "{technology.description:3}", element, searchDocument, null, 0);
 
         Assert.Equal(3, result.Split("Weighted dot text").Length - 1);
+    }
+
+    [Fact]
+    public void RenderMarkdownTemplate_WeightsMultipleTextStringListsWithoutBlankLinesBetweenGroups()
+    {
+        var indexer = CreateIndexer();
+        var firstCategory = new FakePublishedContent("Client projects", ("segments", "Umbraco.MultipleTextString", new[] { "Client projects" }));
+        var secondCategory = new FakePublishedContent("Websites", ("segments", "Umbraco.MultipleTextString", new[] { "Websites" }));
+        var element = new FakePublishedElement(("categories", "Umbraco.MultiNodeTreePicker", new[] { firstCategory, secondCategory }));
+        var searchDocument = new SearchIndexDocument();
+
+        var result = InvokeRenderMarkdownTemplate(indexer, "{categories.segments:2}", element, searchDocument, null, 0);
+
+        Assert.Equal("- Client projects\n- Websites\n- Client projects\n- Websites", result);
     }
 
     [Fact]
@@ -243,6 +582,27 @@ public sealed class IndexerTextExtractionTests
         Assert.Equal("Context summary", InvokeResolveContextPropertyText(indexer, searchDocument.Chunking.Context.AdditionalPropertyAliases.Single(), content, searchDocument));
     }
 
+    [Fact]
+    public void CreateChunkContext_DoesNotDuplicateAliasesAlreadyInMarkdownTemplate()
+    {
+        var indexer = CreateIndexer();
+        var category = new FakePublishedElement(("label", "Umbraco.TextBox", "Context category"));
+        var content = new FakePublishedContent(
+            "Current",
+            ("headline", "Umbraco.TextBox", "Context title"),
+            ("category", "Umbraco.MultiNodeTreePicker", category),
+            ("summary", "Umbraco.TextBox", "Context summary"));
+        var searchDocument = new SearchIndexDocument();
+        searchDocument.SearchText.MarkdownTemplate = "# {headline}\n\n> {Breadcrumb}\n\n{category.label}\n\n{summary}";
+        searchDocument.Chunking.Context.TitlePropertyAliases.Add("headline");
+        searchDocument.Chunking.Context.CategoryPropertyAliases.Add("category.label");
+        searchDocument.Chunking.Context.AdditionalPropertyAliases.Add("summary");
+
+        var result = InvokeCreateChunkContext(indexer, content, searchDocument);
+
+        Assert.Empty(result);
+    }
+
     private static string InvokeGetPropertyText(IPublishedElement element, string propertyAlias)
     {
         var method = typeof(FilteringAiVectorIndexer).GetMethod("GetPropertyText", BindingFlags.NonPublic | BindingFlags.Static);
@@ -264,6 +624,15 @@ public sealed class IndexerTextExtractionTests
             .Cast<object>()
             .Select(part => Assert.IsType<string>(part.GetType().GetProperty("Text")?.GetValue(part)))
             .ToList();
+    }
+
+    private static string InvokeCreateChunkContext(FilteringAiVectorIndexer indexer, IPublishedContent content, SearchIndexDocument searchDocument)
+    {
+        var method = typeof(FilteringAiVectorIndexer).GetMethod("CreateChunkContext", BindingFlags.NonPublic | BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        return Assert.IsType<string>(method.Invoke(indexer, [content, searchDocument, new Dictionary<string, string>()]));
     }
 
     private static string InvokeRenderMarkdownTemplate(FilteringAiVectorIndexer indexer, string template, IPublishedElement element, SearchIndexDocument searchDocument, IPublishedContent? content, int depth)
@@ -298,14 +667,16 @@ public sealed class IndexerTextExtractionTests
             .ToList();
     }
 
-    private static FilteringAiVectorIndexer CreateIndexer() => new(
+    private static FilteringAiVectorIndexer CreateIndexer(IContentService? contentService = null, IUserService? userService = null, IUmbracoContextFactory? contextFactory = null) => new(
         null!,
         null!,
         null!,
         null!,
         null!,
         null!,
-        null!,
+        contentService,
+        userService,
+        contextFactory!,
         null!,
         null!,
         Options.Create(new Umbraco.AI.Search.Core.Configuration.AIVectorSearchOptions()),
@@ -329,9 +700,17 @@ public sealed class IndexerTextExtractionTests
             ContentType = new FakePublishedContentType("testElement", _properties.Select(property => property.PropertyType));
         }
 
+        public FakePublishedElement(params (string Alias, string EditorAlias, object? Value, object? SourceValue)[] properties)
+        {
+            _properties = properties
+                .Select(property => new FakePublishedProperty(property.Alias, property.EditorAlias, property.Value, property.SourceValue))
+                .ToList();
+            ContentType = new FakePublishedContentType("testElement", _properties.Select(property => property.PropertyType));
+        }
+
         public IPublishedContentType ContentType { get; }
 
-        public Guid Key { get; } = Guid.NewGuid();
+        public Guid Key { get; protected set; } = Guid.NewGuid();
 
         public IEnumerable<IPublishedProperty> Properties => _properties;
 
@@ -345,6 +724,12 @@ public sealed class IndexerTextExtractionTests
         public int Id => 1;
 
         public string Name { get; } = name;
+
+        public FakePublishedContent(string name, Guid key, params (string Alias, string EditorAlias, object? Value)[] properties)
+            : this(name, properties)
+        {
+            Key = key;
+        }
 
         public string UrlSegment => name.ToLowerInvariant();
 
@@ -377,7 +762,7 @@ public sealed class IndexerTextExtractionTests
         public bool IsPublished(string? culture = null) => true;
     }
 
-    private sealed class FakePublishedProperty(string alias, string editorAlias, object? value) : IPublishedProperty
+    private sealed class FakePublishedProperty(string alias, string editorAlias, object? value, object? sourceValue = null) : IPublishedProperty
     {
         public IPublishedPropertyType PropertyType { get; } = new FakePublishedPropertyType(alias, editorAlias);
 
@@ -385,11 +770,16 @@ public sealed class IndexerTextExtractionTests
 
         public bool HasValue(string? culture = null, string? segment = null) => value is not null;
 
-        public object? GetSourceValue(string? culture = null, string? segment = null) => value;
+        public object? GetSourceValue(string? culture = null, string? segment = null) => sourceValue ?? value;
 
         public object? GetValue(string? culture = null, string? segment = null) => value;
 
         public object? GetDeliveryApiValue(bool expanding, string? culture = null, string? segment = null) => value;
+    }
+
+    private sealed class FakeUdi(string value)
+    {
+        public override string ToString() => value;
     }
 
     private sealed class FakePublishedPropertyType(string alias, string editorAlias) : IPublishedPropertyType

@@ -38,11 +38,11 @@ public sealed class OptionsAndSchemaTests
         var document = new SearchIndexDocument();
 
         document.DocumentTypeAliases.Add("article");
-        document.SearchText.Fields["body"] = new SearchTextFieldOptions { Weight = 2 };
+        document.SearchText.MarkdownTemplate = "{body:2}";
         document.Chunking.Context.TitlePropertyAliases.Add("title");
 
         Assert.Equal("article", Assert.Single(document.DocumentTypeAliases));
-        Assert.Equal(2, document.SearchText.Fields["body"].Weight);
+        Assert.Equal("{body:2}", document.SearchText.MarkdownTemplate);
         Assert.Equal("title", Assert.Single(document.Chunking.Context.TitlePropertyAliases));
     }
 
@@ -97,16 +97,13 @@ public sealed class OptionsAndSchemaTests
         var chunkingProperties = indexingProperties
             .GetProperty("Chunking")
             .GetProperty("properties");
-        var weight = indexingProperties
+        var searchTextProperties = indexingProperties
             .GetProperty("SearchText")
-            .GetProperty("properties")
-            .GetProperty("Fields")
-            .GetProperty("additionalProperties")
-            .GetProperty("properties")
-            .GetProperty("Weight");
+            .GetProperty("properties");
 
         Assert.Equal("array", indexingProperties.GetProperty("DocumentTypeAliases").GetProperty("type").GetString());
-        Assert.Equal(1, weight.GetProperty("default").GetInt32());
+        Assert.True(searchTextProperties.TryGetProperty("MarkdownTemplate", out _));
+        Assert.False(searchTextProperties.TryGetProperty("Fields", out _));
         Assert.False(chunkingProperties.GetProperty("UseHeadingAwareChunking").GetProperty("default").GetBoolean());
     }
 }

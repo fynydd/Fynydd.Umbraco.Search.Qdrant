@@ -38,6 +38,8 @@ public sealed class FilteringAiVectorIndexerAddOrUpdateTests
         Assert.NotNull(upsert.Metadata);
         var snippet = Assert.IsType<string>(upsert.Metadata["snippet"]);
         Assert.Equal("Hello **syntax**", snippet);
+        Assert.Equal("Hello **syntax**", upsert.Metadata["chunkText"]);
+        Assert.Equal("Hello **syntax**", upsert.Metadata["sourceText"]);
         Assert.DoesNotContain('<', snippet);
         Assert.Equal("Document", upsert.Metadata["objectType"]);
         Assert.Equal("en-US", upsert.Metadata["culture"]);
@@ -219,14 +221,7 @@ public sealed class FilteringAiVectorIndexerAddOrUpdateTests
                     [
                         new SearchIndexDocument
                         {
-                            DocumentTypeAliases = ["article"],
-                            SearchText =
-                            {
-                                Fields =
-                                {
-                                    ["body"] = new SearchTextFieldOptions()
-                                }
-                            }
+                            DocumentTypeAliases = ["article"]
                         }
                     ]
                 }
@@ -240,6 +235,8 @@ public sealed class FilteringAiVectorIndexerAddOrUpdateTests
             textChunker,
             tokenCounter,
             contentTypeService,
+            null,
+            null,
             contextFactory,
             variationContextAccessor,
             replacementProvider,

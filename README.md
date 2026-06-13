@@ -101,24 +101,14 @@ Here is where the new settings will go in your *appsettings.json* file:
             "Indexing": [
                 {
                     "DocumentTypeAliases": ["docPage", "docsPage"],
-                    // MarkdownTemplate also defines which properties are indexed
-                    // by Qdrant. It supports fallbacks like {headline|Name},
+                    // MarkdownTemplate defines which properties are indexed
+                    // by Qdrant. It supports weights like {headline:3},
+                    // fallbacks like {headline|Name},
                     // picker/block-list paths like {author.Name} or
                     // {technology.description}, and dynamic values like Breadcrumb.
-                    // Fields and chunking context aliases also support dotted paths.
+                    // Chunking context aliases also support dotted paths.
                     "SearchText": {
-                        "MarkdownTemplate": "# {headline|heroHeadline|Name}\n\n> {Breadcrumb}\n\n## Summary\n\n{heroIntroductionText}\n\n## Body\n\n{blockContent}\n\n{Url}",
-                        "Fields": {
-                            // Weights are 1-5, with higher values providing more
-                            // influence over matches (used as a multiplier for 
-                            // repeating content); default is 1
-                            "headline": { "Weight": 3 },
-                            "heroHeadline": { "Weight": 3 },
-                            "heroIntroductionText": { "Weight": 2 },
-                            "richText": {},
-                            "body": {},
-                            "blockContent": {}
-                        }
+                        "MarkdownTemplate": "# {headline|heroHeadline|Name:3}\n\n> {Breadcrumb}\n\n## Summary\n\n{heroIntroductionText:2}\n\n## Body\n\n{blockContent}\n\n{Url}"
                     },
                     "Chunking": {
                         // Include document and other relevant headings in each chunk
@@ -137,14 +127,7 @@ Here is where the new settings will go in your *appsettings.json* file:
                 {
                     "DocumentTypeAliases": ["utilityPage"],
                     "SearchText": {
-                        "MarkdownTemplate": "# {utilityGroup|Name}\n\n> {Breadcrumb}\n\n## Summary\n\n{utilityGroupDescription}\n\n## Body\n\n{blockContent}\n\n{Url}",
-                        "Fields": {
-                            "utilityGroup": { "Weight": 3 },
-                            "utilityGroupDescription": { "Weight": 2 },
-                            "richText": {},
-                            "body": {},
-                            "blockContent": {}
-                        }
+                        "MarkdownTemplate": "# {utilityGroup|Name:3}\n\n> {Breadcrumb}\n\n## Summary\n\n{utilityGroupDescription:2}\n\n## Body\n\n{blockContent}\n\n{Url}"
                     },
                     "Chunking": {
                         "UseHeadingAwareChunking": true,

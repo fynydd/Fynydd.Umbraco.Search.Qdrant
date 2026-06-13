@@ -42,7 +42,7 @@ public sealed class QdrantVectorStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task InitializeAsync_RecreatesCollectionWhenVectorSizeChanges()
+    public async Task InitializeAsync_PreservesCollectionWhenVectorSizeChanges()
     {
         var indexName = UniqueIndexName();
         var store = CreateStore(out var client, options =>
@@ -59,7 +59,7 @@ public sealed class QdrantVectorStoreIntegrationTests : IAsyncLifetime
         await store.InitializeAsync();
 
         var info = await client.GetCollectionInfoAsync(collectionName);
-        Assert.Equal(3UL, info.Config?.Params?.VectorsConfig?.Params?.Size);
+        Assert.Equal(2UL, info.Config?.Params?.VectorsConfig?.Params?.Size);
     }
 
     [Fact]
