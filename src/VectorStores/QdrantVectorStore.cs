@@ -16,7 +16,7 @@ namespace Fynydd.Umbraco.Search.Qdrant.VectorStores;
 /// </summary>
 public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilterOptions> filterOptions, ILogger<QdrantVectorStore> logger) : IAIVectorStore
 {
-    private const string CollectionPrefix = "umbraco-sfumato-";
+    private const string CollectionPrefix = "umbraco-qdrant-";
     private readonly ConcurrentDictionary<string, ulong> _ensuredCollections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _collectionLocks = new(StringComparer.OrdinalIgnoreCase);
 

@@ -38,7 +38,7 @@ public sealed class QdrantVectorStoreIntegrationTests : IAsyncLifetime
         await store.InitializeAsync();
 
         var collections = await client.ListCollectionsAsync();
-        Assert.Contains("umbraco-sfumato-umbai_search", collections);
+        Assert.Contains("umbraco-qdrant-umbai_search", collections);
     }
 
     [Fact]
@@ -533,5 +533,5 @@ public sealed class QdrantVectorStoreIntegrationTests : IAsyncLifetime
 
     private static string UniqueIndexName() => "test_" + Guid.NewGuid().ToString("N");
 
-    private static string CollectionName(string indexName) => "umbraco-sfumato-" + indexName.ToLowerInvariant();
+    private static string CollectionName(string indexName) => "umbraco-qdrant-" + indexName.ToLowerInvariant();
 }

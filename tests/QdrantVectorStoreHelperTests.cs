@@ -7,18 +7,18 @@ namespace Umbraco.Search.Qdrant.Tests;
 public sealed class QdrantVectorStoreHelperTests
 {
     [Theory]
-    [InlineData("UmbAI_Search", null, "umbraco-sfumato-umbai_search")]
-    [InlineData(" Docs ", "en-US", "umbraco-sfumato-docs-en-us")]
-    [InlineData("Docs", "en-US__segment__Mobile", "umbraco-sfumato-docs-en-us__segment__mobile")]
+    [InlineData("UmbAI_Search", null, "umbraco-qdrant-umbai_search")]
+    [InlineData(" Docs ", "en-US", "umbraco-qdrant-docs-en-us")]
+    [InlineData("Docs", "en-US__segment__Mobile", "umbraco-qdrant-docs-en-us__segment__mobile")]
     public void GetCollectionName_NormalizesIndexAndVariation(string indexName, string? culture, string expected)
     {
         Assert.Equal(expected, InvokeStatic<string>("GetCollectionName", indexName, culture));
     }
 
     [Theory]
-    [InlineData("umbraco-sfumato-docs", "umbraco-sfumato-docs", true)]
-    [InlineData("umbraco-sfumato-docs-en-us", "umbraco-sfumato-docs", true)]
-    [InlineData("umbraco-sfumato-docsite", "umbraco-sfumato-docs", false)]
+    [InlineData("umbraco-qdrant-docs", "umbraco-qdrant-docs", true)]
+    [InlineData("umbraco-qdrant-docs-en-us", "umbraco-qdrant-docs", true)]
+    [InlineData("umbraco-qdrant-docsite", "umbraco-qdrant-docs", false)]
     public void IsCollectionForIndex_MatchesExactNameOrVariationSuffix(string collectionName, string prefix, bool expected)
     {
         Assert.Equal(expected, InvokeStatic<bool>("IsCollectionForIndex", collectionName, prefix));
