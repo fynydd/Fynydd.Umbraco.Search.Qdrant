@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
+using Grpc.Core;
 using Microsoft.Extensions.Options;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
@@ -118,6 +119,27 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
         finally
         {
             collectionLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Runs a collection write, recreating the collection once when Qdrant reports it disappeared after local cache validation.
+    /// </summary>
+    private async Task ExecuteCollectionWriteAsync(string collectionName, Func<Task> write, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await write();
+        }
+        catch (RpcException exception) when (exception.StatusCode == StatusCode.NotFound)
+        {
+            _ensuredCollections.TryRemove(collectionName, out _);
+
+            if (await EnsureCollectionCachedAsync(collectionName, cancellationToken) == false)
+                throw;
+
+            logger.LogWarning(exception, "Qdrant collection {CollectionName} was missing during write and has been recreated", collectionName);
+            await write();
         }
     }
 
@@ -321,7 +343,10 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
 
         var point = CreatePoint(indexName, documentId, culture, chunkIndex, vector, metadata);
 
-        _ = await client.UpsertAsync(collectionName, [point], cancellationToken: cancellationToken);
+        await ExecuteCollectionWriteAsync(
+            collectionName,
+            async () => _ = await client.UpsertAsync(collectionName, [point], cancellationToken: cancellationToken),
+            cancellationToken);
     }
 
     /// <summary>
@@ -356,7 +381,10 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
             if (await EnsureCollectionCachedAsync(collectionName, cancellationToken) == false)
                 throw new InvalidOperationException($"Failed to create or access collection `{collectionName}` in Qdrant.");
 
-            _ = await client.UpsertAsync(collectionName, points, cancellationToken: cancellationToken);
+            await ExecuteCollectionWriteAsync(
+                collectionName,
+                async () => _ = await client.UpsertAsync(collectionName, points, cancellationToken: cancellationToken),
+                cancellationToken);
         }
     }
 

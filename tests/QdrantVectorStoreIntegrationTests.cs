@@ -351,6 +351,24 @@ public sealed class QdrantVectorStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpsertAsync_RecreatesCollectionWhenItDisappearsAfterBeingCached()
+    {
+        var store = CreateStore(out var client);
+        var indexName = UniqueIndexName();
+        var collectionName = CollectionName(indexName);
+        var firstDocumentId = Guid.NewGuid().ToString("D");
+        var secondDocumentId = Guid.NewGuid().ToString("D");
+
+        await store.UpsertAsync(indexName, firstDocumentId, null, 0, new ReadOnlyMemory<float>([1f, 0f, 0f]));
+        await client.DeleteCollectionAsync(collectionName, TimeSpan.FromSeconds(300));
+        await store.UpsertAsync(indexName, secondDocumentId, null, 0, new ReadOnlyMemory<float>([1f, 0f, 0f]));
+
+        var entries = await store.GetVectorsByDocumentAsync(indexName, secondDocumentId);
+
+        Assert.Single(entries);
+    }
+
+    [Fact]
     public async Task ResetAsync_ClearsSegmentCollections()
     {
         var store = CreateStore(out _);
