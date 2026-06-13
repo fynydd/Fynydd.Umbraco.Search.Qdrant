@@ -7,9 +7,9 @@
         <Title>Umbraco Semantic Search Qdrant Provider</Title>
         <RootNamespace>Fynydd.Umbraco.Search.Qdrant</RootNamespace>
 
-        <AssemblyVersion>1.0.7</AssemblyVersion>
-        <FileVersion>1.0.7</FileVersion>
-        <PackageVersion>1.0.7</PackageVersion>
+        <AssemblyVersion>1.0.8</AssemblyVersion>
+        <FileVersion>1.0.8</FileVersion>
+        <PackageVersion>1.0.8</PackageVersion>
 
         <PackageId>fynydd.umbraco.search.qdrant</PackageId>
         <Authors>Fynydd LLC</Authors>
@@ -19,7 +19,7 @@
         <PackageTags>umbraco;qdrant;semantic-search;vector-search</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-        <PackageReleaseNotes>Renamed collection prefix to "umbraco-qdrant-".</PackageReleaseNotes>
+        <PackageReleaseNotes>Recreates cached Qdrant collections when a write discovers they disappeared after startup.</PackageReleaseNotes>
         <PackageIcon>nuget-icon.png</PackageIcon>
         <PackageOutputPath>nupkg</PackageOutputPath>
         <PackageProjectUrl>https://github.com/fynydd/Fynydd.Umbraco.Search.Qdrant</PackageProjectUrl>
