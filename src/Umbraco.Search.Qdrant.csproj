@@ -7,9 +7,9 @@
         <Title>Umbraco Semantic Search Qdrant Provider</Title>
         <RootNamespace>Fynydd.Umbraco.Search.Qdrant</RootNamespace>
 
-        <AssemblyVersion>1.0.9</AssemblyVersion>
-        <FileVersion>1.0.9</FileVersion>
-        <PackageVersion>1.0.9</PackageVersion>
+        <AssemblyVersion>1.0.10</AssemblyVersion>
+        <FileVersion>1.0.10</FileVersion>
+        <PackageVersion>1.0.10</PackageVersion>
 
         <PackageId>fynydd.umbraco.search.qdrant</PackageId>
         <Authors>Fynydd LLC</Authors>
@@ -19,7 +19,7 @@
         <PackageTags>umbraco;qdrant;semantic-search;vector-search</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-        <PackageReleaseNotes>Adds warning logs before Qdrant collection cleanup and reset operations clear vectors.</PackageReleaseNotes>
+        <PackageReleaseNotes>Removes automatic orphaned collection deletion to prevent shared Qdrant databases from deleting other projects' collections.</PackageReleaseNotes>
         <PackageIcon>nuget-icon.png</PackageIcon>
         <PackageOutputPath>nupkg</PackageOutputPath>
         <PackageProjectUrl>https://github.com/fynydd/Fynydd.Umbraco.Search.Qdrant</PackageProjectUrl>
