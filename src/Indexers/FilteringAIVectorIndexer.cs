@@ -1570,10 +1570,6 @@ public sealed class QdrantConnectionOptions
     /// </summary>
     public ulong EmbeddingSize { get; set; } = 1024;
 
-    /// <summary>
-    /// Removes old prefixed collections that no configured index alias references.
-    /// </summary>
-    public bool RemoveOrphanedCollections { get; set; }
 }
 
 /// <summary>

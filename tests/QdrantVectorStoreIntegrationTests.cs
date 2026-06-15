@@ -63,36 +63,12 @@ public sealed class QdrantVectorStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task InitializeAsync_RemovesOrphanedPrefixedCollectionsWhenEnabled()
-    {
-        var indexName = UniqueIndexName();
-        var orphanName = CollectionName(UniqueIndexName());
-        var store = CreateStore(out var client, options =>
-        {
-            options.DisableDefaultIndex = true;
-            options.Connection.RemoveOrphanedCollections = true;
-            options.Categories["docs"] = new SearchCategory { IndexAlias = indexName };
-        });
-
-        await client.CreateCollectionAsync(
-            orphanName,
-            new VectorParams { Size = 3, Distance = Distance.Cosine });
-
-        await store.InitializeAsync();
-
-        var collections = await client.ListCollectionsAsync();
-        Assert.Contains(CollectionName(indexName), collections);
-        Assert.DoesNotContain(orphanName, collections);
-    }
-
-    [Fact]
-    public async Task InitializeAsync_PreservesOrphanedPrefixedCollectionsWhenCleanupIsDisabled()
+    public async Task InitializeAsync_PreservesOtherPrefixedCollections()
     {
         var orphanName = CollectionName(UniqueIndexName());
         var store = CreateStore(out var client, options =>
         {
             options.DisableDefaultIndex = true;
-            options.Connection.RemoveOrphanedCollections = false;
             options.Categories["docs"] = new SearchCategory { IndexAlias = UniqueIndexName() };
         });
 

@@ -7,7 +7,7 @@ This provides a streamlined and performant way to add semantic search to your Um
 **Key features:**
 
 - High-performance Qdrant vector store that leverages filters
-- Qdrant collections are completely managed; orphans get deleted, new ones get created, and vector size mismatch with your embedding model will recreate the collection
+- Qdrant collections are created automatically and preserved unless an explicit Umbraco semantic-search reset is requested
 - Provides an optional `ITextReplacementsProvider` interface, so you can perform find/replace on content before it gets indexed (e.g. if your web app uses short codes, etc.)
 - Completely configurable in *appsettings.json*; includes a schema file with descriptions and default values for the Qdrant features
 - Can disable the default search index "UmbAI_Search" to avoid excess embeddings generation
@@ -83,9 +83,7 @@ Here is where the new settings will go in your *appsettings.json* file:
         "UseHttps": false,
         "ServerApiKey": "opensaysme",
         // Should match the embedding profile alias in the back office
-        "EmbeddingSize": 1024,
-        // Deletes Qdrant collections which no longer exist as categories (below)
-        "RemoveOrphanedCollections": true
+        "EmbeddingSize": 1024
     },
     "Categories": {
         "Documentation": {

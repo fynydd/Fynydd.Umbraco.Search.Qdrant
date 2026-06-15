@@ -24,37 +24,6 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
     #region Helpers
 
     /// <summary>
-    /// Deletes prefixed Qdrant collections that no configured semantic-search index alias references.
-    /// This cleanup runs at most once for the current vector-store instance.
-    /// </summary>
-    private async Task RemoveOrphanedCollectionsAsync(CancellationToken cancellationToken)
-    {
-        if (filterOptions.Value.Connection.RemoveOrphanedCollections == false)
-            return;
-
-        var validPrefixes = GetConfiguredIndexAliases()
-            .Select(alias => GetCollectionName(alias, null))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var collections = await client.ListCollectionsAsync(cancellationToken);
-
-        foreach (var collectionName in collections)
-        {
-            if (collectionName.StartsWith(CollectionPrefix) == false)
-                continue;
-
-            var isValid = validPrefixes.Any(prefix =>
-                IsCollectionForIndex(collectionName, prefix));
-
-            if (isValid == false)
-            {
-                logger.LogWarning("Deleting orphaned Qdrant collection {CollectionName} because RemoveOrphanedCollections is enabled", collectionName);
-                await client.DeleteCollectionAsync(collectionName, TimeSpan.FromSeconds(300), cancellationToken);
-            }
-        }
-    }
-    
-    /// <summary>
     /// Ensures a Qdrant collection exists without deleting existing vectors during normal startup or search traffic.
     /// </summary>
     /// <param name="collectionName">The Qdrant collection name.</param>
@@ -300,15 +269,6 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = new())
     {
-        try
-        {
-            await RemoveOrphanedCollectionsAsync(cancellationToken);
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(exception, "Failed to remove orphaned Qdrant collections");
-        }
-
         var collections = await client.ListCollectionsAsync(cancellationToken);
 
         foreach (var indexName in GetConfiguredIndexAliases())

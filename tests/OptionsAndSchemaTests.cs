@@ -15,7 +15,6 @@ public sealed class OptionsAndSchemaTests
         Assert.Equal(6334, options.Connection.ServerPort);
         Assert.False(options.Connection.UseHttps);
         Assert.Equal(1024UL, options.Connection.EmbeddingSize);
-        Assert.False(options.Connection.RemoveOrphanedCollections);
         Assert.Empty(options.Categories);
     }
 
@@ -76,7 +75,7 @@ public sealed class OptionsAndSchemaTests
         Assert.Equal(6334, connection.GetProperty("ServerPort").GetProperty("default").GetInt32());
         Assert.False(connection.GetProperty("UseHttps").GetProperty("default").GetBoolean());
         Assert.Equal(1024, connection.GetProperty("EmbeddingSize").GetProperty("default").GetInt32());
-        Assert.False(connection.GetProperty("RemoveOrphanedCollections").GetProperty("default").GetBoolean());
+        Assert.False(connection.TryGetProperty("RemoveOrphanedCollections", out _));
     }
 
     [Fact]
