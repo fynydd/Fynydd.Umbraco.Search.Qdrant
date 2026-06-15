@@ -47,7 +47,10 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
                 IsCollectionForIndex(collectionName, prefix));
 
             if (isValid == false)
+            {
+                logger.LogWarning("Deleting orphaned Qdrant collection {CollectionName} because RemoveOrphanedCollections is enabled", collectionName);
                 await client.DeleteCollectionAsync(collectionName, TimeSpan.FromSeconds(300), cancellationToken);
+            }
         }
     }
     
@@ -648,6 +651,7 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
             if (IsCollectionForIndex(collectionName, collectionNamePrefix) == false)
                 continue;
 
+            logger.LogWarning("Resetting Qdrant collection {CollectionName} for index {IndexName}; existing vectors will be cleared", collectionName, indexName);
             _ensuredCollections.TryRemove(collectionName, out _);
             await client.DeleteCollectionAsync(collectionName, TimeSpan.FromSeconds(300), cancellationToken);
             await client.CreateCollectionAsync(
