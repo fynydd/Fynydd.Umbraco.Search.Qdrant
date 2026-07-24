@@ -346,7 +346,8 @@ public sealed class IndexerTextExtractionTests
         property.Alias.Returns("segments");
         property.Values.Returns([propertyValue]);
         var properties = Substitute.For<IPropertyCollection>();
-        properties.GetEnumerator().Returns(_ => new List<IProperty> { property }.GetEnumerator());
+        using var enumerator = properties.GetEnumerator();
+        enumerator.Returns(_ => new List<IProperty> { property }.GetEnumerator());
         var serviceCategory = Substitute.For<IContent>();
         serviceCategory.HasProperty("segments").Returns(true);
         serviceCategory.GetValue("segments", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<bool>()).Returns((object?)null);
@@ -378,7 +379,8 @@ public sealed class IndexerTextExtractionTests
         var pickerProperty = Substitute.For<IProperty>();
         pickerProperty.Alias.Returns("segments");
         var pickerProperties = Substitute.For<IPropertyCollection>();
-        pickerProperties.GetEnumerator().Returns(_ => new List<IProperty> { pickerProperty }.GetEnumerator());
+        using var enumerator = pickerProperties.GetEnumerator();
+        enumerator.Returns(_ => new List<IProperty> { pickerProperty }.GetEnumerator());
         pickerCategory.Properties.Returns(pickerProperties);
         var contentService = Substitute.For<IContentService>();
         contentService.GetById(categoryKey).Returns(pickerCategory);
@@ -592,8 +594,13 @@ public sealed class IndexerTextExtractionTests
             ("headline", "Umbraco.TextBox", "Context title"),
             ("category", "Umbraco.MultiNodeTreePicker", category),
             ("summary", "Umbraco.TextBox", "Context summary"));
-        var searchDocument = new SearchIndexDocument();
-        searchDocument.SearchText.MarkdownTemplate = "# {headline}\n\n> {Breadcrumb}\n\n{category.label}\n\n{summary}";
+        var searchDocument = new SearchIndexDocument
+        {
+            SearchText =
+            {
+                MarkdownTemplate = "# {headline}\n\n> {Breadcrumb}\n\n{category.label}\n\n{summary}"
+            }
+        };
         searchDocument.Chunking.Context.TitlePropertyAliases.Add("headline");
         searchDocument.Chunking.Context.CategoryPropertyAliases.Add("category.label");
         searchDocument.Chunking.Context.AdditionalPropertyAliases.Add("summary");
@@ -710,6 +717,7 @@ public sealed class IndexerTextExtractionTests
 
         public IPublishedContentType ContentType { get; }
 
+        // ReSharper disable once PropertyCanBeMadeInitOnly.Local
         public Guid Key { get; protected set; } = Guid.NewGuid();
 
         public IEnumerable<IPublishedProperty> Properties => _properties;
@@ -718,20 +726,17 @@ public sealed class IndexerTextExtractionTests
             _properties.FirstOrDefault(property => alias.Equals(property.Alias, StringComparison.OrdinalIgnoreCase));
     }
 
-    private sealed class FakePublishedContent(string name, params (string Alias, string EditorAlias, object? Value)[] properties)
-        : FakePublishedElement(properties), IPublishedContent
+    private sealed class FakePublishedContent(string name, params (string Alias, string EditorAlias, object? Value)[] properties) : FakePublishedElement(properties), IPublishedContent
     {
         public int Id => 1;
-
         public string Name { get; } = name;
 
-        public FakePublishedContent(string name, Guid key, params (string Alias, string EditorAlias, object? Value)[] properties)
-            : this(name, properties)
+        public FakePublishedContent(string name, Guid key, params (string Alias, string EditorAlias, object? Value)[] properties) : this(name, properties)
         {
             Key = key;
         }
 
-        public string UrlSegment => name.ToLowerInvariant();
+        public string UrlSegment => Name.ToLowerInvariant();
 
         public int SortOrder => 0;
 

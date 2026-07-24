@@ -14,7 +14,7 @@ public static partial class SemanticSearchExtensions
     private static readonly Config MarkdownConverterConfig = new()
     {
         GithubFlavored = true,
-        RemoveComments = true,
+        Formatting = { RemoveComments = true }
     };
 
     /// <summary>

@@ -14,8 +14,7 @@ namespace Umbraco.Search.Qdrant.Tests;
 
 public sealed class QdrantVectorStoreIntegrationTests : IAsyncLifetime
 {
-    private readonly IContainer _container = new ContainerBuilder()
-        .WithImage("qdrant/qdrant")
+    private readonly IContainer _container = new ContainerBuilder("qdrant/qdrant")
         .WithPortBinding(6334, true)
         .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(6334))
         .Build();

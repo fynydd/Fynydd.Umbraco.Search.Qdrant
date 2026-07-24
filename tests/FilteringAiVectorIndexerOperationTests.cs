@@ -50,7 +50,7 @@ public sealed class FilteringAiVectorIndexerOperationTests
         null!,
         null!,
         null!,
-        null,
+        null!,
         null!,
         null,
         null!,
