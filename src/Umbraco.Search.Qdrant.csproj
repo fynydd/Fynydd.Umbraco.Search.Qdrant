@@ -7,9 +7,9 @@
         <Title>Umbraco Semantic Search Qdrant Provider</Title>
         <RootNamespace>Fynydd.Umbraco.Search.Qdrant</RootNamespace>
 
-        <AssemblyVersion>17.0.0</AssemblyVersion>
-        <FileVersion>17.0.0</FileVersion>
-        <PackageVersion>17.0.0</PackageVersion>
+        <AssemblyVersion>17.0.1</AssemblyVersion>
+        <FileVersion>17.0.1</FileVersion>
+        <PackageVersion>17.0.1</PackageVersion>
 
         <PackageId>fynydd.umbraco.search.qdrant</PackageId>
         <Authors>Fynydd LLC</Authors>
@@ -19,7 +19,7 @@
         <PackageTags>umbraco;qdrant;semantic-search;vector-search</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-        <PackageReleaseNotes>Dependency package updates, refactor remaining obsolete code.</PackageReleaseNotes>
+        <PackageReleaseNotes>Updated packages.</PackageReleaseNotes>
         <PackageIcon>nuget-icon.png</PackageIcon>
         <PackageOutputPath>nupkg</PackageOutputPath>
         <PackageProjectUrl>https://github.com/fynydd/Fynydd.Umbraco.Search.Qdrant</PackageProjectUrl>
@@ -29,9 +29,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Qdrant.Client" Version="1.18.1" />
-        <PackageReference Include="ReverseMarkdown" Version="6.1.0" />
-        <PackageReference Include="Umbraco.AI.Search" Version="17.0.0" />
+        <PackageReference Include="Qdrant.Client" Version="1.19.0" />
+        <PackageReference Include="ReverseMarkdown" Version="6.1.1" />
+        <PackageReference Include="Umbraco.AI.Search" Version="17.0.1" />
     </ItemGroup>
 
     <ItemGroup>

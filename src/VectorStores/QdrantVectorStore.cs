@@ -447,7 +447,7 @@ public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilter
             if (collections.Contains(collectionName, StringComparer.OrdinalIgnoreCase) == false)
                 continue;
 
-            scoredPoints.AddRange(await client.SearchAsync(
+            scoredPoints.AddRange(await client.QueryAsync(
                 collectionName,
                 queryVector.ToArray(),
                 filter: filter,
