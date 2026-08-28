@@ -32,17 +32,18 @@ public sealed class UmbracoSqliteBootTests : UmbracoIntegrationTest
             NUnit.Framework.Assert.That(GetRequiredService<IContentService>(), Is.Not.Null);
         });
 
-        CanPersistAndReadContentTypeFromSqlite();
-        CanPersistAndReadContentFromSqlite();
-        CanPublishContentInSqlite();
+        await CanPersistAndReadContentTypeFromSqliteAsync();
+        await CanPersistAndReadContentFromSqliteAsync();
+        await CanPublishContentInSqliteAsync();
+        
         CanPersistAndReadMediaFromSqlite();
-        await CanPersistAndReadCultureVariantContentFromSqlite();
+        
+        await CanPersistAndReadCultureVariantContentFromSqliteAsync();
     }
 
-    private void CanPersistAndReadContentTypeFromSqlite()
+    private async Task CanPersistAndReadContentTypeFromSqliteAsync()
     {
-        var alias = CreateContentType();
-
+        var alias = await CreateContentTypeAsync();
         var saved = GetRequiredService<IContentTypeService>().Get(alias);
 
         NUnit.Framework.Assert.That(saved, Is.Not.Null);
@@ -50,14 +51,15 @@ public sealed class UmbracoSqliteBootTests : UmbracoIntegrationTest
         NUnit.Framework.Assert.That(saved.AllowedAsRoot, Is.True);
     }
 
-    private void CanPersistAndReadContentFromSqlite()
+    private async Task CanPersistAndReadContentFromSqliteAsync()
     {
-        var alias = CreateContentType(includeBody: true);
+        var alias = await CreateContentTypeAsync(includeBody: true);
         var contentService = GetRequiredService<IContentService>();
-
         var content = contentService.Create("Home", Constants.System.Root, alias);
+
         content.SetValue("body", "<p>Hello <strong>SQLite</strong></p>");
         contentService.Save(content);
+       
         var saved = contentService.GetById(content.Key);
 
         NUnit.Framework.Assert.That(saved, Is.Not.Null);
@@ -66,9 +68,9 @@ public sealed class UmbracoSqliteBootTests : UmbracoIntegrationTest
         NUnit.Framework.Assert.That(saved.GetValue<string>("body"), Is.EqualTo("<p>Hello <strong>SQLite</strong></p>"));
     }
 
-    private void CanPublishContentInSqlite()
+    private async Task CanPublishContentInSqliteAsync()
     {
-        var alias = CreateContentType(includeBody: true);
+        var alias = await CreateContentTypeAsync(includeBody: true);
         var contentService = GetRequiredService<IContentService>();
         var content = contentService.Create("Published Home", Constants.System.Root, alias);
         content.SetValue("body", "<p>Published <strong>HTML</strong></p>");
@@ -97,11 +99,11 @@ public sealed class UmbracoSqliteBootTests : UmbracoIntegrationTest
         NUnit.Framework.Assert.That(saved.ContentType.Alias, Is.EqualTo(Constants.Conventions.MediaTypes.Image));
     }
 
-    private async Task CanPersistAndReadCultureVariantContentFromSqlite()
+    private async Task CanPersistAndReadCultureVariantContentFromSqliteAsync()
     {
         var language = await GetRequiredService<ILanguageService>().GetDefaultLanguageAsync();
         NUnit.Framework.Assert.That(language, Is.Not.Null);
-        var alias = CreateContentType(includeBody: true, variations: ContentVariation.Culture);
+        var alias = await CreateContentTypeAsync(includeBody: true, variations: ContentVariation.Culture);
         var contentService = GetRequiredService<IContentService>();
         var content = contentService.Create("Home", Constants.System.Root, alias);
         content.SetCultureName("Home Variant", language!.IsoCode);
@@ -116,7 +118,7 @@ public sealed class UmbracoSqliteBootTests : UmbracoIntegrationTest
         NUnit.Framework.Assert.That(saved.GetValue<string>("body", language.IsoCode), Is.EqualTo("<p>Variant <strong>HTML</strong></p>"));
     }
 
-    private string CreateContentType(bool includeBody = false, ContentVariation variations = ContentVariation.Nothing)
+    private async Task<string> CreateContentTypeAsync(bool includeBody = false, ContentVariation variations = ContentVariation.Nothing)
     {
         var contentTypeService = GetRequiredService<IContentTypeService>();
         var shortStringHelper = GetRequiredService<IShortStringHelper>();
@@ -131,10 +133,10 @@ public sealed class UmbracoSqliteBootTests : UmbracoIntegrationTest
 
         if (includeBody)
         {
-#pragma warning disable CS0618
-            var dataType = GetRequiredService<IDataTypeService>().GetDataType(Constants.DataTypes.RichtextEditor);
-#pragma warning restore CS0618
+            var dataType = await GetRequiredService<IDataTypeService>().GetAsync(Constants.DataTypes.Guids.RichtextEditorGuid);
+
             NUnit.Framework.Assert.That(dataType, Is.Not.Null);
+            
             var body = new PropertyType(shortStringHelper, dataType!)
             {
                 Alias = "body",
@@ -145,9 +147,9 @@ public sealed class UmbracoSqliteBootTests : UmbracoIntegrationTest
             contentType.AddPropertyType(body);
         }
 
-#pragma warning disable CS0618
-        contentTypeService.Save(contentType);
-#pragma warning restore CS0618
+        var result = await contentTypeService.CreateAsync(contentType, Constants.Security.SuperUserKey);
+
+        NUnit.Framework.Assert.True(result.Success);
 
         return alias;
     }

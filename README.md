@@ -15,7 +15,7 @@ This provides a streamlined and performant way to add semantic search to your Um
 
 **Requirements:**
 
-- Umbraco CMS 17 or later
+- Umbraco CMS 18 or later
 - Umbraco.AI.Search package
 - An AI API service that provides embeddings generation (e.g. AWS Bedrock, OpenAI API, etc.)
 - A Qdrant vector database

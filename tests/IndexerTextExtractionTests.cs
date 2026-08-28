@@ -14,6 +14,7 @@ using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Web;
 using Umbraco.Cms.Core.PropertyEditors;
 using Umbraco.Cms.Search.Core.Models.Indexing;
+// ReSharper disable UnassignedGetOnlyAutoProperty
 
 namespace Umbraco.Search.Qdrant.Tests;
 
@@ -701,9 +702,12 @@ public sealed class IndexerTextExtractionTests
 
         public FakePublishedElement(params (string Alias, string EditorAlias, object? Value)[] properties)
         {
-            _properties = properties
-                .Select(property => new FakePublishedProperty(property.Alias, property.EditorAlias, property.Value))
-                .ToList();
+            _properties =
+            [
+                .. properties
+                    .Select(property => new FakePublishedProperty(property.Alias, property.EditorAlias, property.Value))
+            ];
+
             ContentType = new FakePublishedContentType("testElement", _properties.Select(property => property.PropertyType));
         }
 
@@ -715,21 +719,40 @@ public sealed class IndexerTextExtractionTests
             ContentType = new FakePublishedContentType("testElement", _properties.Select(property => property.PropertyType));
         }
 
+        public bool IsPublished(string? culture = null)
+        {
+            throw new NotImplementedException();
+        }
+
         public IPublishedContentType ContentType { get; }
 
         // ReSharper disable once PropertyCanBeMadeInitOnly.Local
         public Guid Key { get; protected set; } = Guid.NewGuid();
 
         public IEnumerable<IPublishedProperty> Properties => _properties;
+        public int Id { get; }
+        public string Name { get; } = null!;
+        public int SortOrder { get; }
+        public int CreatorId { get; }
+        public DateTime CreateDate { get; }
+        public int WriterId { get; }
+        public DateTime UpdateDate { get; }
+        public IReadOnlyDictionary<string, PublishedCultureInfo> Cultures { get; } = null!;
+        public PublishedItemType ItemType { get; }
 
         public IPublishedProperty? GetProperty(string alias) =>
             _properties.FirstOrDefault(property => alias.Equals(property.Alias, StringComparison.OrdinalIgnoreCase));
+
+        public bool IsDraft(string? culture = null)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     private sealed class FakePublishedContent(string name, params (string Alias, string EditorAlias, object? Value)[] properties) : FakePublishedElement(properties), IPublishedContent
     {
-        public int Id => 1;
-        public string Name { get; } = name;
+        public new int Id => 1;
+        public new string Name { get; } = name;
 
         public FakePublishedContent(string name, Guid key, params (string Alias, string EditorAlias, object? Value)[] properties) : this(name, properties)
         {
@@ -738,7 +761,7 @@ public sealed class IndexerTextExtractionTests
 
         public string UrlSegment => Name.ToLowerInvariant();
 
-        public int SortOrder => 0;
+        public new int SortOrder => 0;
 
         public int Level => 1;
 
@@ -746,25 +769,21 @@ public sealed class IndexerTextExtractionTests
 
         public int? TemplateId => null;
 
-        public int CreatorId => 0;
+        public new int CreatorId => 0;
 
-        public DateTime CreateDate => DateTime.UtcNow;
+        public new DateTime CreateDate => DateTime.UtcNow;
 
-        public int WriterId => 0;
+        public new int WriterId => 0;
 
-        public DateTime UpdateDate => DateTime.UtcNow;
+        public new DateTime UpdateDate => DateTime.UtcNow;
 
-        public IReadOnlyDictionary<string, PublishedCultureInfo> Cultures { get; } = new Dictionary<string, PublishedCultureInfo>();
+        public new IReadOnlyDictionary<string, PublishedCultureInfo> Cultures { get; } = new Dictionary<string, PublishedCultureInfo>();
 
-        public PublishedItemType ItemType => PublishedItemType.Content;
+        public new PublishedItemType ItemType => PublishedItemType.Content;
 
-        public IPublishedContent? Parent => null;
+        public new bool IsDraft(string? culture = null) => false;
 
-        public IEnumerable<IPublishedContent> Children => [];
-
-        public bool IsDraft(string? culture = null) => false;
-
-        public bool IsPublished(string? culture = null) => true;
+        public new bool IsPublished(string? culture = null) => true;
     }
 
     private sealed class FakePublishedProperty(string alias, string editorAlias, object? value, object? sourceValue = null) : IPublishedProperty
