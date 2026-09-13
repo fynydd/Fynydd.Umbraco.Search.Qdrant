@@ -256,19 +256,26 @@ public partial class FilteringAiVectorIndexer(
             return;
         }
 
-        await vectorStore.DeleteDocumentAsync(indexAlias, documentId);
+        try
+        {
+            await vectorStore.DeleteDocumentAsync(indexAlias, documentId);
 
-        if (vectorStore is QdrantVectorStore qdrantVectorStore)
-        {
-            await qdrantVectorStore.UpsertManyAsync(
-                indexAlias,
-                documentId,
-                pendingUpserts.Select(pendingUpsert => new AIVectorEntry(documentId, pendingUpsert.VariationKey, pendingUpsert.ChunkIndex, pendingUpsert.Vector, pendingUpsert.Metadata)));
+            if (vectorStore is QdrantVectorStore qdrantVectorStore)
+            {
+                await qdrantVectorStore.UpsertManyAsync(
+                    indexAlias,
+                    documentId,
+                    pendingUpserts.Select(pendingUpsert => new AIVectorEntry(documentId, pendingUpsert.VariationKey, pendingUpsert.ChunkIndex, pendingUpsert.Vector, pendingUpsert.Metadata)));
+            }
+            else
+            {
+                foreach (var pendingUpsert in pendingUpserts)
+                    await vectorStore.UpsertAsync(indexAlias, documentId, pendingUpsert.VariationKey, pendingUpsert.ChunkIndex, pendingUpsert.Vector, pendingUpsert.Metadata);
+            }
         }
-        else
+        catch (Exception exception) when (QdrantTransientFailure.IsTransient(exception))
         {
-            foreach (var pendingUpsert in pendingUpserts)
-                await vectorStore.UpsertAsync(indexAlias, documentId, pendingUpsert.VariationKey, pendingUpsert.ChunkIndex, pendingUpsert.Vector, pendingUpsert.Metadata);
+            logger.LogWarning(exception, "Skipped vector replacement for document {DocumentId} in {IndexAlias} because Qdrant is unavailable", id, indexAlias);
         }
     }
 
@@ -277,8 +284,15 @@ public partial class FilteringAiVectorIndexer(
     /// </summary>
     public async Task DeleteAsync(string indexAlias, IEnumerable<Guid> ids)
     {
-        foreach (var id in ids)
-            await vectorStore.DeleteDocumentAsync(indexAlias, id.ToString("D"));
+        try
+        {
+            foreach (var id in ids)
+                await vectorStore.DeleteDocumentAsync(indexAlias, id.ToString("D"));
+        }
+        catch (Exception exception) when (QdrantTransientFailure.IsTransient(exception))
+        {
+            logger.LogWarning(exception, "Skipped vector deletion in {IndexAlias} because Qdrant is unavailable", indexAlias);
+        }
     }
 
     /// <summary>
@@ -286,17 +300,36 @@ public partial class FilteringAiVectorIndexer(
     /// </summary>
     public async Task ResetAsync(string indexAlias)
     {
-        await vectorStore.ResetAsync(indexAlias);
-        logger.LogInformation("Reset vector index {IndexAlias}", indexAlias);
+        try
+        {
+            await vectorStore.ResetAsync(indexAlias);
+            logger.LogInformation("Reset vector index {IndexAlias}", indexAlias);
+        }
+        catch (Exception exception) when (QdrantTransientFailure.IsTransient(exception))
+        {
+            logger.LogWarning(exception, "Skipped resetting vector index {IndexAlias} because Qdrant is unavailable", indexAlias);
+        }
     }
 
     /// <summary>
     /// Gets health and document-count metadata for the vector index.
     /// </summary>
-    public async Task<IndexMetadata> GetMetadataAsync(string indexAlias) => new(
-        await vectorStore.GetDocumentCountAsync(indexAlias),
-        HealthStatus.Healthy,
-        "ai-vector-search-provider");
+    public async Task<IndexMetadata> GetMetadataAsync(string indexAlias)
+    {
+        try
+        {
+            return new IndexMetadata(
+                await vectorStore.GetDocumentCountAsync(indexAlias),
+                HealthStatus.Healthy,
+                "ai-vector-search-provider");
+        }
+        catch (Exception exception) when (QdrantTransientFailure.IsTransient(exception))
+        {
+            logger.LogWarning(exception, "Could not read vector index metadata for {IndexAlias} because Qdrant is unavailable", indexAlias);
+
+            return new IndexMetadata(0, HealthStatus.Unknown, "ai-vector-search-provider");
+        }
+    }
 
     /// <summary>
     /// Creates repeated breadcrumb, category, title, and configured-property context prepended to every chunk.
@@ -1569,6 +1602,16 @@ public sealed class QdrantConnectionOptions
     /// Expected embedding vector dimension, which must match the configured embedding model output size.
     /// </summary>
     public ulong EmbeddingSize { get; set; } = 1024;
+
+    /// <summary>
+    /// Maximum duration of ordinary gRPC calls to Qdrant.
+    /// </summary>
+    public int RequestTimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Maximum duration of Qdrant collection initialization during application startup.
+    /// </summary>
+    public int InitializationTimeoutSeconds { get; set; } = 5;
 
 }
 

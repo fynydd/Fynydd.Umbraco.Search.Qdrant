@@ -35,9 +35,11 @@ public class QdrantVectorStoreComposer : IComposer
                 connectionOptions.ServerAddress,
                 port: connectionOptions.ServerPort,
                 https: connectionOptions.UseHttps,
-                apiKey: connectionOptions.ServerApiKey);
+                apiKey: connectionOptions.ServerApiKey,
+                grpcTimeout: TimeSpan.FromSeconds(Math.Max(1, connectionOptions.RequestTimeoutSeconds)));
         });
         builder.Services.AddSingleton<QdrantVectorStore>();
+        builder.Services.AddSingleton<IQdrantCollectionInitializer>(services => services.GetRequiredService<QdrantVectorStore>());
         builder.Services.AddSingleton<IAIVectorStore>(services => services.GetRequiredService<QdrantVectorStore>());
         builder.Services.AddHostedService<QdrantVectorStoreInitializer>();
         builder.Services.TryAddSingleton<ITextReplacementProvider, EmptyTextReplacementProvider>();

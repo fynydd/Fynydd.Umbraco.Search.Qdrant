@@ -7,9 +7,9 @@
         <Title>Umbraco Semantic Search Qdrant Provider</Title>
         <RootNamespace>Fynydd.Umbraco.Search.Qdrant</RootNamespace>
 
-        <AssemblyVersion>18.0.3</AssemblyVersion>
-        <FileVersion>18.0.3</FileVersion>
-        <PackageVersion>18.0.3</PackageVersion>
+        <AssemblyVersion>18.0.4</AssemblyVersion>
+        <FileVersion>18.0.4</FileVersion>
+        <PackageVersion>18.0.4</PackageVersion>
 
         <PackageId>fynydd.umbraco.search.qdrant</PackageId>
         <Authors>Fynydd LLC</Authors>
@@ -19,7 +19,7 @@
         <PackageTags>umbraco;qdrant;semantic-search;vector-search</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-        <PackageReleaseNotes>Updated packages.</PackageReleaseNotes>
+        <PackageReleaseNotes>Qdrant outage handled gracefully.</PackageReleaseNotes>
         <PackageIcon>nuget-icon.png</PackageIcon>
         <PackageOutputPath>nupkg</PackageOutputPath>
         <PackageProjectUrl>https://github.com/fynydd/Fynydd.Umbraco.Search.Qdrant</PackageProjectUrl>
@@ -36,10 +36,10 @@
 
     <ItemGroup>
         <!-- These override Umbraco dependencies with security vulnerabilities -->
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
         <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
         <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
-        <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.11" />
+        <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
         <PackageReference Include="MessagePack.AspNetCoreMvcFormatter" Version="3.1.8" />
     </ItemGroup>
 

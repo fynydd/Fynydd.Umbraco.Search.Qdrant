@@ -82,6 +82,10 @@ Here is where the new settings will go in your *appsettings.json* file:
         "ServerPort": 6334,
         "UseHttps": false,
         "ServerApiKey": "opensaysme",
+        // Maximum duration for ordinary Qdrant calls
+        "RequestTimeoutSeconds": 30,
+        // Maximum Qdrant wait during application startup
+        "InitializationTimeoutSeconds": 5,
         // Should match the embedding profile alias in the back office
         "EmbeddingSize": 1024
     },
@@ -143,6 +147,8 @@ Here is where the new settings will go in your *appsettings.json* file:
 }
 ...
 ```
+
+If Qdrant is unavailable, Umbraco continues starting and semantic searches return no results. Content publishing and deletion continue, but their vector updates are skipped and logged. Rebuild the affected search indexes after Qdrant becomes available again.
 
 ## Optional Text Replacement Provider
 

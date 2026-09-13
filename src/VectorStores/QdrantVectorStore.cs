@@ -15,7 +15,7 @@ namespace Fynydd.Umbraco.Search.Qdrant.VectorStores;
 /// <summary>
 /// Stores AI embedding vectors in Qdrant collections partitioned by Umbraco search index and variation key.
 /// </summary>
-public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilterOptions> filterOptions, ILogger<QdrantVectorStore> logger) : IAIVectorStore
+public class QdrantVectorStore(QdrantClient client, IOptions<AiSearchIndexFilterOptions> filterOptions, ILogger<QdrantVectorStore> logger) : IAIVectorStore, IQdrantCollectionInitializer
 {
     private const string CollectionPrefix = "umbraco-qdrant-";
     private readonly ConcurrentDictionary<string, ulong> _ensuredCollections = new(StringComparer.OrdinalIgnoreCase);

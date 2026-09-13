@@ -1,5 +1,6 @@
 using Fynydd.Umbraco.Search.Qdrant.Indexers;
 using Fynydd.Umbraco.Search.Qdrant.Services;
+using Grpc.Core;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -138,6 +139,65 @@ public sealed class FilteringAiVectorIndexerAddOrUpdateTests
         Assert.Empty(harness.VectorStore.Upserts);
     }
 
+    [Fact]
+    public async Task AddOrUpdateAsync_QdrantUnavailableDuringDelete_CompletesWithoutEscaping()
+    {
+        var harness = CreateHarness();
+        harness.VectorStore.DeleteDocumentException = new RpcException(
+            new Status(StatusCode.Unavailable, "Connection refused."));
+
+        await harness.Indexer.AddOrUpdateAsync(
+            "index",
+            Guid.NewGuid(),
+            UmbracoObjectTypes.Document,
+            [new Variation(null, null)],
+            CreateFields(Guid.NewGuid(), "Text"),
+            null);
+
+        Assert.Single(harness.VectorStore.DeletedDocuments);
+        Assert.Equal(0, harness.VectorStore.UpsertAttempts);
+        Assert.Empty(harness.VectorStore.Upserts);
+    }
+
+    [Fact]
+    public async Task AddOrUpdateAsync_QdrantDeadlineExceededDuringUpsert_CompletesWithoutEscaping()
+    {
+        var harness = CreateHarness();
+        harness.VectorStore.UpsertException = new RpcException(
+            new Status(StatusCode.DeadlineExceeded, "Deadline exceeded."));
+
+        await harness.Indexer.AddOrUpdateAsync(
+            "index",
+            Guid.NewGuid(),
+            UmbracoObjectTypes.Document,
+            [new Variation(null, null)],
+            CreateFields(Guid.NewGuid(), "Text"),
+            null);
+
+        Assert.Single(harness.VectorStore.DeletedDocuments);
+        Assert.Equal(1, harness.VectorStore.UpsertAttempts);
+        Assert.Empty(harness.VectorStore.Upserts);
+    }
+
+    [Fact]
+    public async Task AddOrUpdateAsync_NonTransientVectorStoreFailure_Propagates()
+    {
+        var harness = CreateHarness();
+        harness.VectorStore.DeleteDocumentException = new InvalidOperationException("Programming error.");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            harness.Indexer.AddOrUpdateAsync(
+                "index",
+                Guid.NewGuid(),
+                UmbracoObjectTypes.Document,
+                [new Variation(null, null)],
+                CreateFields(Guid.NewGuid(), "Text"),
+                null));
+
+        Assert.Equal("Programming error.", exception.Message);
+        Assert.Equal(0, harness.VectorStore.UpsertAttempts);
+    }
+
     private static IReadOnlyList<IndexField> CreateFields(Guid contentTypeKey, string text) =>
     [
         new IndexField(
@@ -255,8 +315,19 @@ public sealed class FilteringAiVectorIndexerAddOrUpdateTests
 
         public List<AIVectorEntry> Upserts { get; } = [];
 
+        public int UpsertAttempts { get; private set; }
+
+        public Exception? DeleteDocumentException { get; set; }
+
+        public Exception? UpsertException { get; set; }
+
         public Task UpsertAsync(string indexName, string documentId, string? culture, int chunkIndex, ReadOnlyMemory<float> vector, IDictionary<string, object>? metadata = null, CancellationToken cancellationToken = new())
         {
+            UpsertAttempts++;
+
+            if (UpsertException is not null)
+                return Task.FromException(UpsertException);
+
             Upserts.Add(new AIVectorEntry(documentId, culture, chunkIndex, vector, metadata ?? new Dictionary<string, object>()));
 
             return Task.CompletedTask;
@@ -268,7 +339,9 @@ public sealed class FilteringAiVectorIndexerAddOrUpdateTests
         {
             DeletedDocuments.Add(documentId);
 
-            return Task.CompletedTask;
+            return DeleteDocumentException is null
+                ? Task.CompletedTask
+                : Task.FromException(DeleteDocumentException);
         }
 
         public Task<IReadOnlyList<AIVectorSearchResult>> SearchAsync(string indexName, ReadOnlyMemory<float> queryVector, string? culture = null, int topK = 10, CancellationToken cancellationToken = new()) =>

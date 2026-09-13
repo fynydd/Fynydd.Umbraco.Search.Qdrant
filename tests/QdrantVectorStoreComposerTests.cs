@@ -20,16 +20,24 @@ public sealed class QdrantVectorStoreComposerTests
     public void Compose_RegistersQdrantVectorStoreServices()
     {
         var services = new ServiceCollection();
+        services.AddLogging();
         var builder = CreateBuilder(services);
 
         new QdrantVectorStoreComposer().Compose(builder);
 
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(QdrantVectorStore));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IAIVectorStore));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IQdrantCollectionInitializer));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IHostedService) && descriptor.ImplementationType == typeof(QdrantVectorStoreInitializer));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(ITextReplacementProvider));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(FilteringAiVectorIndexer));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(FilteringAiVectorSearcher));
+
+        using var provider = services.BuildServiceProvider();
+        var vectorStore = provider.GetRequiredService<QdrantVectorStore>();
+
+        Assert.Same(vectorStore, provider.GetRequiredService<IAIVectorStore>());
+        Assert.Same(vectorStore, provider.GetRequiredService<IQdrantCollectionInitializer>());
     }
 
     [Fact]
